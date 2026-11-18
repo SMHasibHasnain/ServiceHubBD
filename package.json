@@ -1,0 +1,9 @@
+{
+  "name": "servicehub-bd",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "api": "dotnet run --project server/src/ServiceHub.Api"
+  }
+}
