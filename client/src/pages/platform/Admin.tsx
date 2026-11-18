@@ -1,31 +1,11 @@
 import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, CalendarDays, Flag, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { api } from "../../api/client";
-import type { AdminUser, Assignment, AuditLogItem, Paged, PlatformStats, Role } from "../../api/types";
+import type { AdminUser, Assignment, AuditLogItem, Paged, Role } from "../../api/types";
 import { flattenCategories, useCategories, ZonePicker } from "../../components/shared";
-import { Avatar, Badge, Button, ErrorBox, LoadingList, Modal, PageHeader, Stat, useToast } from "../../components/ui";
+import { Avatar, Badge, Button, ErrorBox, LoadingList, Modal, PageHeader, useToast } from "../../components/ui";
 import { ROLE_NAMES, bn, dateShort, dateTime, relative } from "../../lib/format";
-
-export function AdminOverview() {
-  const stats = useQuery({ queryKey: ["admin", "stats"], queryFn: () => api.get<PlatformStats>("/api/admin/stats") });
-  const s = stats.data;
-  return (
-    <>
-      <PageHeader title="প্ল্যাটফর্ম ড্যাশবোর্ড" subtitle="ServiceHub BD-এর সার্বিক অবস্থা" />
-      <ErrorBox error={stats.error} />
-      {!s ? <LoadingList rows={2} /> : (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Stat label="মোট ব্যবহারকারী" value={bn(s.totalUsers)} note={`আজ নতুন ${bn(s.newRegistrationsToday)}`} icon={<Users className="size-[18px]" />} />
-          <Stat label="মোট ব্যবসা" value={bn(s.totalBusinesses)} note={`প্রকাশিত ${bn(s.publishedBusinesses)}`} tone="teal" icon={<Building2 className="size-[18px]" />} />
-          <Stat label="অপেক্ষমাণ যাচাইকরণ" value={bn(s.pendingVerifications)} tone="amber" icon={<ShieldCheck className="size-[18px]" />} />
-          <Stat label="আজকের বুকিং" value={bn(s.bookingsToday)} tone="blue" icon={<CalendarDays className="size-[18px]" />} />
-          <Stat label="খোলা রিপোর্ট" value={bn(s.openReports)} tone="red" icon={<Flag className="size-[18px]" />} />
-        </div>
-      )}
-    </>
-  );
-}
 
 export function AdminUsers() {
   const qc = useQueryClient();
