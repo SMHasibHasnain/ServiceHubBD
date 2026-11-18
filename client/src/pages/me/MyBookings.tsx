@@ -3,10 +3,10 @@ import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Clock, Star } from "lucide-react";
 import { api } from "../../api/client";
-import type { Booking, Paged } from "../../api/types";
+import type { Booking, CustomerStats, Paged } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { Avatar, Badge, Button, EmptyState, ErrorBox, LinkButton, LoadingList, Modal, PageHeader, Segmented, useToast } from "../../components/ui";
-import { BOOKING_STATUS, bn, dateLong, priceLabel, timeOnly } from "../../lib/format";
+import { BOOKING_STATUS, bn, dateLong, priceLabel, taka, timeOnly } from "../../lib/format";
 
 type Scope = "upcoming" | "past" | "cancelled";
 const TIMELINE = ["বুক করা হয়েছে", "নিশ্চিত", "সেবা", "রিভিউ"];
@@ -28,10 +28,29 @@ export default function MyBookings() {
     queryFn: () => api.get<Paged<Booking>>("/api/me/bookings", { scope, pageSize: 50 }),
   });
 
+  const stats = useQuery({ queryKey: ["me", "stats"], queryFn: () => api.get<CustomerStats>("/api/me/stats") });
+  const st = stats.data;
+
   return (
     <>
       <PageHeader title="আমার বুকিং" subtitle={`স্বাগতম, ${user?.fullName.split(" ")[0]}! আপনার সব বুকিং এক জায়গায়।`}
         actions={<LinkButton to="/search">সেবা খুঁজুন</LinkButton>} />
+      {st && st.totalBookings > 0 && (
+        <section aria-label="আমার পরিসংখ্যান" className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-4">
+          {[
+            ["মোট বুকিং", bn(st.totalBookings), `${bn(st.upcoming)}টি আসন্ন`],
+            ["সম্পন্ন সেবা", bn(st.completed), st.cancelled ? `${bn(st.cancelled)}টি বাতিল` : "কোনো বাতিল নেই"],
+            ["মোট খরচ", taka(st.totalSpent), "সম্পন্ন সেবায়"],
+            ["ব্যবহৃত ব্যবসা", bn(st.businessesUsed), st.topCategory ? `প্রিয়: ${st.topCategory}` : `${bn(st.reviewsGiven)}টি রিভিউ দিয়েছেন`],
+          ].map(([label, value, note]) => (
+            <div key={label} className="bg-surface p-4">
+              <div className="text-sm text-muted">{label}</div>
+              <div className="mt-1 text-2xl font-semibold">{value}</div>
+              <div className="mt-0.5 truncate text-xs text-subtle">{note}</div>
+            </div>
+          ))}
+        </section>
+      )}
       <div className="mb-5">
         <Segmented label="বুকিংয়ের ধরন" value={scope} onChange={setScope}
           options={[{ value: "upcoming", label: "আসন্ন" }, { value: "past", label: "সম্পন্ন" }, { value: "cancelled", label: "বাতিল" }]} />
