@@ -206,6 +206,7 @@ export function BusinessLayout() {
     { to: `${base}/customers`, label: "গ্রাহক", icon: Users, permission: "customers.view" },
     { to: `${base}/services`, label: "সেবাসমূহ", icon: Package },
     { to: `${base}/reviews`, label: "রিভিউ", icon: Star },
+    { to: `${base}/analytics`, label: "বিশ্লেষণ", icon: BarChart3, permission: "analytics.view" },
     { to: `${base}/team`, label: "টিম ও ভূমিকা", icon: UsersRound, permission: "members.view" },
     { to: `${base}/settings`, label: "ব্যবসার সেটিংস", icon: Settings, permission: "business.update" },
   ];
@@ -244,10 +245,14 @@ const PLATFORM_NAV: Record<"moderation" | "inspection" | "administration", NavIt
     { to: "/moderation", label: "যাচাইকরণ", icon: ShieldCheck, end: true },
     { to: "/moderation/reports", label: "রিপোর্ট", icon: Flag },
     { to: "/moderation/history", label: "সিদ্ধান্তের ইতিহাস", icon: ScrollText },
+    { to: "/moderation/analytics", label: "পরিসংখ্যান", icon: BarChart3 },
   ],
-  inspection: [{ to: "/inspections", label: "পরিদর্শন", icon: ClipboardCheck, end: true }],
+  inspection: [
+    { to: "/inspections", label: "পরিদর্শন", icon: ClipboardCheck, end: true },
+    { to: "/inspections/analytics", label: "পরিসংখ্যান", icon: BarChart3 },
+  ],
   administration: [
-    { to: "/admin", label: "ড্যাশবোর্ড", icon: BarChart3, end: true },
+    { to: "/admin", label: "বিশ্লেষণ ড্যাশবোর্ড", icon: LayoutDashboard, end: true },
     { to: "/admin/users", label: "ব্যবহারকারী", icon: Users },
     { to: "/admin/roles", label: "ভূমিকা ও অনুমতি", icon: ShieldCheck },
     { to: "/admin/audit", label: "অডিট লগ", icon: ScrollText },
