@@ -1,0 +1,503 @@
+// Mirrors the server DTOs (server/src/ServiceHub.Api/Features/**). Enums are snake_case strings.
+
+export type Guid = string;
+export type IsoDateTime = string; // UTC ISO-8601
+export type IsoDate = string; // yyyy-MM-dd (Bangladesh local)
+export type TimeStr = string; // HH:mm:ss
+
+export interface Paged<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+// ---------- auth / me ----------
+export type WorkspaceType = "customer" | "business" | "moderation" | "inspection" | "marketing" | "administration";
+
+export interface TokenPair {
+  accessToken: string;
+  accessTokenExpiresAt: IsoDateTime;
+  refreshToken: string;
+  refreshTokenExpiresAt: IsoDateTime;
+}
+
+export interface User {
+  id: Guid;
+  fullName: string;
+  phone: string;
+  email: string | null;
+  avatarUrl: string | null;
+  phoneVerified: boolean;
+  lastWorkspaceType: WorkspaceType;
+  lastActiveBusinessId: Guid | null;
+}
+
+export interface AuthResponse {
+  user: User;
+  tokens: TokenPair;
+}
+
+export type VerificationStatus = "draft" | "submitted" | "under_review" | "info_requested" | "approved" | "rejected";
+
+export interface Workspace {
+  type: WorkspaceType;
+  name: string;
+  subtitle: string;
+  businessId: Guid | null;
+  roleKey: string | null;
+  roleName: string | null;
+  verificationStatus: VerificationStatus | null;
+  zoneId: number | null;
+  unreadNotifications: number;
+  permissions: string[];
+}
+
+export interface NotificationItem {
+  id: Guid;
+  workspace: WorkspaceType;
+  businessId: Guid | null;
+  type: string;
+  title: string;
+  body: string | null;
+  actionUrl: string | null;
+  data: Record<string, string> | null;
+  readAt: IsoDateTime | null;
+  createdAt: IsoDateTime;
+}
+
+// ---------- taxonomy ----------
+export type ZoneLevel = "division" | "district" | "city_corporation" | "upazila" | "thana" | "pourashava" | "union" | "ward";
+
+export interface Zone {
+  id: number;
+  parentId: number | null;
+  level: ZoneLevel;
+  depth: number;
+  nameBn: string;
+  nameEn: string;
+  slug: string;
+  path: string;
+}
+
+export interface Category {
+  id: number;
+  parentId: number | null;
+  nameBn: string;
+  nameEn: string;
+  slug: string;
+  icon: string | null;
+  sortOrder: number;
+  status: string;
+  children: Category[];
+}
+
+// ---------- businesses ----------
+export type BusinessStatus = "draft" | "published" | "suspended" | "deactivated";
+export type PriceType = "fixed" | "starting_from" | "contact_for_price" | "range";
+export type ServiceAvailability = "available" | "unavailable" | "temporarily_closed" | "seasonal";
+export type RecordStatus = "active" | "inactive" | "archived";
+export type BookingFieldType = "short_text" | "long_text" | "number" | "phone" | "address" | "select" | "multi_select" | "date" | "image";
+
+export interface Hour {
+  dayOfWeek: number; // 0 = Saturday … 6 = Friday
+  opensAt: TimeStr;
+  closesAt: TimeStr;
+}
+
+export interface BookingSettings {
+  autoConfirm: boolean;
+  slotIntervalMinutes: number;
+  minNoticeMinutes: number;
+  maxAdvanceDays: number;
+  bufferMinutes: number;
+  maxConcurrentBookings: number;
+  cancellationPolicy: string | null;
+}
+
+export interface BusinessDetail {
+  id: Guid;
+  name: string;
+  slug: string;
+  categoryId: number;
+  categoryName: string;
+  tagline: string | null;
+  shortDescription: string | null;
+  description: string | null;
+  establishedYear: number | null;
+  logoUrl: string | null;
+  coverUrl: string | null;
+  phone: string | null;
+  email: string | null;
+  websiteUrl: string | null;
+  facebookUrl: string | null;
+  addressLine: string | null;
+  zoneId: number | null;
+  zoneName: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  coverageNote: string | null;
+  languages: string[];
+  offersHomeService: boolean;
+  offersEmergencyService: boolean;
+  status: BusinessStatus;
+  verificationStatus: VerificationStatus;
+  onboardingStep: number;
+  avgRating: number;
+  reviewCount: number;
+  completedBookingCount: number;
+  hours: Hour[];
+  bookingSettings: BookingSettings;
+  myRole: string;
+  myPermissions: string[];
+}
+
+export interface BookingField {
+  id: Guid | null;
+  label: string;
+  fieldType: BookingFieldType;
+  options: string[] | null;
+  placeholder: string | null;
+  isRequired: boolean;
+  sortOrder: number;
+}
+
+export interface Service {
+  id: Guid;
+  businessId: Guid;
+  name: string;
+  slug: string;
+  categoryId: number;
+  shortDescription: string | null;
+  description: string | null;
+  priceType: PriceType;
+  price: number | null;
+  priceMax: number | null;
+  durationMinutes: number;
+  availability: ServiceAvailability;
+  status: RecordStatus;
+  isFeatured: boolean;
+  preparationNotes: string | null;
+  policies: string | null;
+  internalNotes: string | null;
+  bookingCount: number;
+  avgRating: number;
+  lastBookedAt: IsoDateTime | null;
+  bookingFields: BookingField[];
+}
+
+export interface BusinessCard {
+  id: Guid;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  coverUrl: string | null;
+  categoryId: number;
+  categoryName: string;
+  zoneName: string | null;
+  avgRating: number;
+  reviewCount: number;
+  startingPrice: number | null;
+  offersHomeService: boolean;
+  offersEmergencyService: boolean;
+  isVerified: boolean;
+}
+
+export interface PublicReview {
+  id: Guid;
+  customerName: string;
+  serviceName: string;
+  rating: number;
+  comment: string | null;
+  createdAt: IsoDateTime;
+  replyBody: string | null;
+  repliedAt: IsoDateTime | null;
+}
+
+export interface PublicBusiness {
+  id: Guid;
+  name: string;
+  slug: string;
+  tagline: string | null;
+  shortDescription: string | null;
+  description: string | null;
+  logoUrl: string | null;
+  coverUrl: string | null;
+  categoryId: number;
+  categoryName: string;
+  addressLine: string | null;
+  zoneName: string | null;
+  coverageNote: string | null;
+  languages: string[];
+  establishedYear: number | null;
+  offersHomeService: boolean;
+  offersEmergencyService: boolean;
+  avgRating: number;
+  reviewCount: number;
+  completedBookingCount: number;
+  avgResponseMinutes: number | null;
+  websiteUrl: string | null;
+  facebookUrl: string | null;
+  cancellationPolicy: string | null;
+  hours: Hour[];
+  services: Service[];
+  ratingDistribution: Record<string, number>;
+  latestReviews: PublicReview[];
+}
+
+export interface Slot {
+  time: TimeStr;
+  startAt: IsoDateTime;
+  endAt: IsoDateTime;
+  available: boolean;
+}
+
+export interface DayAvailability {
+  date: IsoDate;
+  isOpen: boolean;
+  closedReason: string | null;
+  slots: Slot[];
+}
+
+export interface VerificationSummary {
+  id: Guid;
+  attemptNo: number;
+  status: VerificationStatus;
+  requiresInspection: boolean;
+  decisionReason: string | null;
+  submittedAt: IsoDateTime;
+  decidedAt: IsoDateTime | null;
+  documentTypes: DocumentType[];
+}
+
+export type DocumentType = "national_id" | "trade_license" | "tin_certificate" | "bin_certificate" | "professional_certificate" | "utility_bill" | "other";
+
+// ---------- bookings ----------
+export type BookingStatus = "pending" | "confirmed" | "rejected" | "rescheduled" | "completed" | "cancelled" | "no_show";
+export type ActorType = "customer" | "business" | "moderator" | "admin" | "system";
+
+export interface Booking {
+  id: Guid;
+  bookingNumber: string;
+  businessId: Guid;
+  businessName: string;
+  businessSlug: string;
+  serviceId: Guid;
+  serviceName: string;
+  startAt: IsoDateTime;
+  endAt: IsoDateTime;
+  status: BookingStatus;
+  source: string;
+  priceType: PriceType;
+  quotedPrice: number | null;
+  finalPrice: number | null;
+  durationMinutes: number;
+  customerName: string;
+  customerPhone: string;
+  serviceAddress: string | null;
+  customerNote: string | null;
+  businessNote: string | null;
+  businessCustomerId: Guid;
+  assignedTo: { memberId: Guid; userId: Guid; name: string } | null;
+  cancellationReason: string | null;
+  hasReview: boolean;
+  answers: { label: string; value: string | null; fileUrl: string | null }[];
+  history: { from: BookingStatus | null; to: BookingStatus; actor: ActorType; reason: string | null; at: IsoDateTime }[];
+}
+
+// ---------- CRM ----------
+export interface Customer {
+  id: Guid;
+  userId: Guid | null;
+  displayName: string;
+  phone: string;
+  email: string | null;
+  isVip: boolean;
+  tags: string[];
+  badges: ("vip" | "repeat" | "new" | "inactive")[];
+  firstBookingAt: IsoDateTime | null;
+  lastVisitAt: IsoDateTime | null;
+  nextBookingAt: IsoDateTime | null;
+  totalBookings: number;
+  completedBookings: number;
+  lifetimeValue: number;
+  favouriteService: string | null;
+}
+
+export interface CustomerDetail {
+  customer: Customer;
+  notes: { id: Guid; body: string; isPinned: boolean; authorName: string; createdAt: IsoDateTime }[];
+  bookings: { bookingId: Guid; bookingNumber: string; serviceName: string; startAt: IsoDateTime; status: BookingStatus; finalPrice: number | null }[];
+}
+
+// ---------- reviews ----------
+export interface ManagedReview {
+  id: Guid;
+  bookingId: Guid;
+  customerName: string;
+  serviceName: string;
+  rating: number;
+  comment: string | null;
+  status: string;
+  createdAt: IsoDateTime;
+  reply: string | null;
+  repliedAt: IsoDateTime | null;
+}
+
+// ---------- team ----------
+export interface Role {
+  id: number;
+  key: string;
+  scope: "platform" | "zone" | "business";
+  nameBn: string;
+  nameEn: string;
+  rank: number;
+  permissions: string[];
+}
+
+export interface Member {
+  id: Guid;
+  userId: Guid;
+  fullName: string;
+  phone: string;
+  roleKey: string;
+  roleName: string;
+  title: string | null;
+  status: "invited" | "active" | "suspended" | "removed";
+  joinedAt: IsoDateTime;
+}
+
+export interface Invitation {
+  id: Guid;
+  businessId: Guid;
+  businessName: string;
+  inviteePhone: string | null;
+  roleKey: string;
+  roleName: string;
+  status: string;
+  expiresAt: IsoDateTime;
+  createdAt: IsoDateTime;
+}
+
+// ---------- moderation ----------
+export type PriorityLevel = "low" | "normal" | "high" | "urgent";
+
+export interface QueueItem {
+  id: Guid;
+  businessId: Guid;
+  businessName: string;
+  logoUrl: string | null;
+  ownerName: string;
+  categoryName: string;
+  zoneName: string | null;
+  attemptNo: number;
+  status: VerificationStatus;
+  priority: PriorityLevel;
+  requiresInspection: boolean;
+  assignedModeratorId: Guid | null;
+  submittedAt: IsoDateTime;
+}
+
+export interface VerificationDetail {
+  request: QueueItem;
+  snapshot: Record<string, unknown>;
+  decisionReason: string | null;
+  documents: { id: Guid; documentType: DocumentType; fileUrl: string; fileName: string | null; status: string; reviewerNote: string | null }[];
+  inspections: { id: Guid; status: InspectionStatus; outcome: InspectionOutcome | null; findings: string | null; inspectorName: string | null; visitedAt: IsoDateTime | null }[];
+  previousAttempts: QueueItem[];
+  history: { id: Guid; action: string; reason: string; moderatorName: string; createdAt: IsoDateTime }[];
+}
+
+export interface ReportItem {
+  id: Guid;
+  targetType: "business" | "review" | "user";
+  targetBusinessId: Guid | null;
+  targetBusinessName: string | null;
+  targetReviewId: Guid | null;
+  reviewComment: string | null;
+  targetUserId: Guid | null;
+  reason: string;
+  description: string | null;
+  severity: PriorityLevel;
+  status: string;
+  sameTargetReports: number;
+  createdAt: IsoDateTime;
+}
+
+// ---------- inspections ----------
+export type InspectionStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
+export type InspectionOutcome = "passed" | "failed" | "needs_followup" | "business_not_found";
+
+export interface InspectionItem {
+  id: Guid;
+  type: "verification_visit" | "complaint_followup" | "routine_audit";
+  status: InspectionStatus;
+  outcome: InspectionOutcome | null;
+  businessId: Guid;
+  businessName: string;
+  addressLine: string | null;
+  businessPhone: string | null;
+  zoneId: number;
+  zoneName: string;
+  verificationRequestId: Guid | null;
+  reportId: Guid | null;
+  inspectorId: Guid | null;
+  scheduledFor: IsoDateTime | null;
+  visitedAt: IsoDateTime | null;
+  findings: string | null;
+  checklist: Record<string, boolean> | null;
+  createdAt: IsoDateTime;
+}
+
+// ---------- admin ----------
+export interface PlatformStats {
+  totalUsers: number;
+  totalBusinesses: number;
+  publishedBusinesses: number;
+  pendingVerifications: number;
+  bookingsToday: number;
+  newRegistrationsToday: number;
+  openReports: number;
+}
+
+export interface AdminUser {
+  id: Guid;
+  fullName: string;
+  phone: string;
+  email: string | null;
+  status: "active" | "suspended" | "deactivated";
+  createdAt: IsoDateTime;
+  lastLoginAt: IsoDateTime | null;
+  businessesOwned: number;
+  platformRoles: string[];
+}
+
+export interface Assignment {
+  id: Guid;
+  userId: Guid;
+  userName: string;
+  roleKey: string;
+  roleName: string;
+  zoneId: number | null;
+  zoneName: string | null;
+  categoryId: number | null;
+  categoryName: string | null;
+  validFrom: IsoDateTime;
+  validUntil: IsoDateTime | null;
+  revokedAt: IsoDateTime | null;
+}
+
+export interface AuditLogItem {
+  id: number;
+  actorId: Guid | null;
+  actorName: string | null;
+  scope: string | null;
+  businessId: Guid | null;
+  zoneId: number | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  changes: Record<string, string | null> | null;
+  reason: string | null;
+  createdAt: IsoDateTime;
+}
