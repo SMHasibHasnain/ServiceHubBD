@@ -1,0 +1,25 @@
+@host = http://localhost:5291
+
+### Health
+GET {{host}}/health
+
+### Register
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{ "fullName": "হাসিব হাসনাইন", "phone": "01711234567", "password": "Passw0rd!" }
+
+### Login (dev super admin)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "login": "01700000000", "password": "Admin@12345" }
+
+### Categories
+GET {{host}}/api/categories
+
+### Divisions
+GET {{host}}/api/zones
+
+### Search published businesses
+GET {{host}}/api/public/businesses?q=এসি&sort=highest_rated
