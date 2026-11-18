@@ -29,7 +29,10 @@ const VerificationReview = lazy(() => import("./pages/platform/Moderation").then
 const ModerationReports = lazy(() => import("./pages/platform/Moderation").then((m) => ({ default: m.ModerationReports })));
 const ModerationHistory = lazy(() => import("./pages/platform/Moderation").then((m) => ({ default: m.ModerationHistory })));
 const Inspections = lazy(() => import("./pages/platform/Inspections"));
-const AdminOverview = lazy(() => import("./pages/platform/Admin").then((m) => ({ default: m.AdminOverview })));
+const BusinessAnalytics = lazy(() => import("./pages/business/Analytics"));
+const ModerationAnalytics = lazy(() => import("./pages/platform/PlatformAnalytics").then((m) => ({ default: m.ModerationAnalyticsPage })));
+const InspectionAnalytics = lazy(() => import("./pages/platform/PlatformAnalytics").then((m) => ({ default: m.InspectionAnalyticsPage })));
+const AdminAnalytics = lazy(() => import("./pages/platform/PlatformAnalytics").then((m) => ({ default: m.AdminAnalyticsPage })));
 const AdminUsers = lazy(() => import("./pages/platform/Admin").then((m) => ({ default: m.AdminUsers })));
 const AdminRoles = lazy(() => import("./pages/platform/Admin").then((m) => ({ default: m.AdminRoles })));
 const AdminAudit = lazy(() => import("./pages/platform/Admin").then((m) => ({ default: m.AdminAudit })));
@@ -92,6 +95,7 @@ const router = createBrowserRouter([
           { path: "reviews", element: <Reviews /> },
           { path: "team", element: <Team /> },
           { path: "settings", element: <Settings /> },
+          { path: "analytics", element: <BusinessAnalytics /> },
           { path: "notifications", element: <Notifications workspace="business" /> },
         ],
       },
@@ -103,18 +107,19 @@ const router = createBrowserRouter([
           { path: "v/:id", element: <VerificationReview /> },
           { path: "reports", element: <ModerationReports /> },
           { path: "history", element: <ModerationHistory /> },
+          { path: "analytics", element: <ModerationAnalytics /> },
         ],
       },
       {
         path: "/inspections",
         element: <Protected><PlatformLayout type="inspection" /></Protected>,
-        children: [{ index: true, element: <Inspections /> }],
+        children: [{ index: true, element: <Inspections /> }, { path: "analytics", element: <InspectionAnalytics /> }],
       },
       {
         path: "/admin",
         element: <Protected><PlatformLayout type="administration" /></Protected>,
         children: [
-          { index: true, element: <AdminOverview /> },
+          { index: true, element: <AdminAnalytics /> },
           { path: "users", element: <AdminUsers /> },
           { path: "roles", element: <AdminRoles /> },
           { path: "audit", element: <AdminAudit /> },
