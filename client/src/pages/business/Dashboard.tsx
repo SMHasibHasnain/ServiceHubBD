@@ -2,7 +2,8 @@ import { Link, useOutletContext } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, CalendarDays, CheckCircle2, Circle, Clock, ImagePlus, Package, Settings, Star, Users, XCircle } from "lucide-react";
 import { api } from "../../api/client";
-import type { Booking, BusinessDetail, Paged, Service } from "../../api/types";
+import type { Booking, BusinessAnalytics, BusinessDetail, Paged, Service } from "../../api/types";
+import { KpiTile, LineChart, STATUS_COLOR, VIZ, fmt } from "../../components/charts";
 import { Badge, EmptyState, LinkButton, Skeleton, Stat } from "../../components/ui";
 import { BOOKING_STATUS, VERIFICATION_STATUS, bn, dateLong, timeOnly, todayBd } from "../../lib/format";
 
@@ -99,6 +100,8 @@ export default function Dashboard() {
         <Stat label="গড় রেটিং" value={biz.reviewCount ? bn(biz.avgRating) : "—"} tone="amber" icon={<Star className="size-[18px]" />} note={`${bn(biz.reviewCount)} রিভিউ`} />
       </section>
 
+      {can("analytics.view") && <WeekSnapshot businessId={biz.id} />}
+
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <section className="card p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
@@ -144,5 +147,37 @@ export default function Dashboard() {
         </section>
       </div>
     </div>
+  );
+}
+
+function WeekSnapshot({ businessId }: { businessId: string }) {
+  const q = useQuery({
+    queryKey: ["business", businessId, "analytics", 7],
+    queryFn: () => api.get<BusinessAnalytics>(`/api/businesses/${businessId}/analytics`, { days: 7 }),
+  });
+  const a = q.data;
+  if (!a) return <Skeleton className="h-64" />;
+  return (
+    <section className="card p-5" aria-label="গত ৭ দিনের পারফরম্যান্স">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">গত ৭ দিনের পারফরম্যান্স</h2>
+          <p className="text-sm text-subtle">আগের ৭ দিনের সাথে তুলনা</p>
+        </div>
+        <Link to="analytics" className="text-sm font-semibold text-primary hover:text-primary-hover">পূর্ণ বিশ্লেষণ দেখুন →</Link>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
+        <div className="grid grid-cols-2 gap-3">
+          <KpiTile label="বুকিং" metric={a.kpis.bookings} />
+          <KpiTile label="আয়" metric={a.kpis.revenue} format={fmt.taka} />
+          <KpiTile label="সম্পন্নের হার" metric={a.kpis.completion_rate} format={fmt.pct} deltaMode="points" />
+          <KpiTile label="নতুন গ্রাহক" metric={a.kpis.new_customers} />
+        </div>
+        <LineChart data={a.trend} height={200} series={[
+          { key: "bookings", label: "মোট বুকিং", color: VIZ.series[0] },
+          { key: "completed", label: "সম্পন্ন", color: STATUS_COLOR.completed },
+        ]} />
+      </div>
+    </section>
   );
 }
