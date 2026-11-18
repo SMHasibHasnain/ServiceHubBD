@@ -501,3 +501,32 @@ export interface AuditLogItem {
   reason: string | null;
   createdAt: IsoDateTime;
 }
+
+// ---------- Analytics ----------
+
+export interface Metric { value: number; previous: number | null }
+export interface SeriesPoint { date: string; values: number[] }
+export interface TimeSeries { keys: string[]; points: SeriesPoint[] }
+export interface Slice { key: string; label: string; value: number; secondary: number | null }
+
+interface PeriodInfo { days: number; from: string; to: string; kpis: Record<string, Metric> }
+
+export interface BusinessAnalytics extends PeriodInfo {
+  trend: TimeSeries; statusMix: Slice[]; topServices: Slice[]; staff: Slice[];
+  heatmap: number[][]; ratings: Slice[]; sources: Slice[];
+}
+export interface ModerationAnalytics extends PeriodInfo {
+  trend: TimeSeries; queue: Slice[]; aging: Slice[]; outcomes: Slice[]; reportReasons: Slice[];
+  moderators: Slice[]; pendingByCategory: Slice[];
+}
+export interface InspectionAnalytics extends PeriodInfo {
+  trend: TimeSeries; outcomes: Slice[]; byZone: Slice[]; byType: Slice[];
+}
+export interface AdminAnalytics extends PeriodInfo {
+  growth: TimeSeries; bookings: TimeSeries; funnel: Slice[]; byCategory: Slice[]; byDivision: Slice[];
+  statusMix: Slice[]; topBusinesses: Slice[]; roles: Slice[];
+}
+export interface CustomerStats {
+  totalBookings: number; completed: number; upcoming: number; cancelled: number; totalSpent: number;
+  reviewsGiven: number; businessesUsed: number; topCategory: string | null;
+}
