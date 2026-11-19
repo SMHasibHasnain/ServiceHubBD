@@ -30,6 +30,9 @@ const ModerationReports = lazy(() => import("./pages/platform/Moderation").then(
 const ModerationHistory = lazy(() => import("./pages/platform/Moderation").then((m) => ({ default: m.ModerationHistory })));
 const Inspections = lazy(() => import("./pages/platform/Inspections"));
 const BusinessAnalytics = lazy(() => import("./pages/business/Analytics"));
+const Billing = lazy(() => import("./pages/business/Billing"));
+const Pricing = lazy(() => import("./pages/public/Pricing"));
+const AdminBilling = lazy(() => import("./pages/platform/AdminBilling"));
 const ModerationAnalytics = lazy(() => import("./pages/platform/PlatformAnalytics").then((m) => ({ default: m.ModerationAnalyticsPage })));
 const InspectionAnalytics = lazy(() => import("./pages/platform/PlatformAnalytics").then((m) => ({ default: m.InspectionAnalyticsPage })));
 const AdminAnalytics = lazy(() => import("./pages/platform/PlatformAnalytics").then((m) => ({ default: m.AdminAnalyticsPage })));
@@ -66,6 +69,7 @@ const router = createBrowserRouter([
         children: [
           { path: "/", element: <Landing /> },
           { path: "/search", element: <Search /> },
+          { path: "/pricing", element: <Pricing /> },
           { path: "/b/:slug", element: <BusinessProfile /> },
           { path: "/b/:slug/book", element: <Protected><Booking /></Protected> },
           { path: "*", element: <NotFound /> },
@@ -96,6 +100,7 @@ const router = createBrowserRouter([
           { path: "team", element: <Team /> },
           { path: "settings", element: <Settings /> },
           { path: "analytics", element: <BusinessAnalytics /> },
+          { path: "billing", element: <Billing /> },
           { path: "notifications", element: <Notifications workspace="business" /> },
         ],
       },
@@ -123,6 +128,7 @@ const router = createBrowserRouter([
           { path: "users", element: <AdminUsers /> },
           { path: "roles", element: <AdminRoles /> },
           { path: "audit", element: <AdminAudit /> },
+          { path: "billing", element: <AdminBilling /> },
         ],
       },
     ],
