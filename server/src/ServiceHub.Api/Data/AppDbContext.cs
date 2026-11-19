@@ -11,6 +11,7 @@ namespace ServiceHub.Api.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public const string BookingNumberSequence = "booking_number_seq";
+    public const string InvoiceNumberSequence = "invoice_number_seq";
 
     public DbSet<User> Users => Set<User>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
@@ -44,6 +45,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
+    public DbSet<PlanEntitlement> PlanEntitlements => Set<PlanEntitlement>();
+    public DbSet<BusinessSubscription> BusinessSubscriptions => Set<BusinessSubscription>();
+    public DbSet<SubscriptionInvoice> SubscriptionInvoices => Set<SubscriptionInvoice>();
+    public DbSet<SubscriptionPayment> SubscriptionPayments => Set<SubscriptionPayment>();
+    public DbSet<SubscriptionEvent> SubscriptionEvents => Set<SubscriptionEvent>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -72,6 +79,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         b.HasPostgresExtension("ltree");
         b.HasPostgresExtension("btree_gist");
         b.HasSequence<long>(BookingNumberSequence).StartsAt(1000);
+        b.HasSequence<long>(InvoiceNumberSequence).StartsAt(1);
 
         // ---------- Identity ----------
         b.Entity<User>(e =>
@@ -359,6 +367,57 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => new { x.BusinessId, x.CreatedAt });
             e.HasIndex(x => x.CreatedAt);
             e.Property(x => x.Changes).HasJson();
+        });
+
+        // ---------- Subscriptions ----------
+        b.Entity<SubscriptionPlan>(e =>
+        {
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasIndex(x => x.Key).IsUnique();
+            e.Property(x => x.Key).HasMaxLength(40);
+            e.Property(x => x.PriceMonthly).HasPrecision(10, 2);
+            e.Property(x => x.PriceYearly).HasPrecision(10, 2);
+        });
+        b.Entity<PlanEntitlement>(e =>
+        {
+            e.HasKey(x => new { x.PlanId, x.Key });
+            e.Property(x => x.Key).HasMaxLength(60);
+            e.HasOne<SubscriptionPlan>().WithMany(p => p.Entitlements).HasForeignKey(x => x.PlanId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<BusinessSubscription>(e =>
+        {
+            e.HasIndex(x => x.BusinessId).IsUnique();
+            e.HasIndex(x => new { x.Status, x.CurrentPeriodEnd });
+            e.HasOne(x => x.Business).WithMany().HasForeignKey(x => x.BusinessId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Plan).WithMany().HasForeignKey(x => x.PlanId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<SubscriptionInvoice>(e =>
+        {
+            e.HasIndex(x => x.Number).IsUnique();
+            e.HasIndex(x => new { x.BusinessId, x.CreatedAt });
+            e.Property(x => x.Subtotal).HasPrecision(10, 2);
+            e.Property(x => x.Credit).HasPrecision(10, 2);
+            e.Property(x => x.Total).HasPrecision(10, 2);
+            e.HasOne(x => x.Business).WithMany().HasForeignKey(x => x.BusinessId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Plan).WithMany().HasForeignKey(x => x.PlanId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<SubscriptionPayment>(e =>
+        {
+            e.Property(x => x.Amount).HasPrecision(10, 2);
+            e.Property(x => x.TransactionId).HasMaxLength(60);
+            e.Property(x => x.SenderNumber).HasMaxLength(20);
+            // A mobile-money / bank transaction id can back only one live payment claim.
+            e.HasIndex(x => new { x.Method, x.TransactionId }).IsUnique()
+                .HasFilter("transaction_id IS NOT NULL AND status <> 'rejected'");
+            e.HasIndex(x => new { x.Status, x.CreatedAt });
+            e.HasOne(x => x.Invoice).WithMany(i => i.Payments).HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<SubscriptionEvent>(e =>
+        {
+            e.HasIndex(x => new { x.BusinessId, x.CreatedAt });
+            e.HasIndex(x => new { x.BusinessId, x.Type });
+            e.Property(x => x.Data).HasJson();
+            e.HasOne<Business>().WithMany().HasForeignKey(x => x.BusinessId).OnDelete(DeleteBehavior.Cascade);
         });
 
         ApplyEnumsAsSnakeCaseStrings(b);
