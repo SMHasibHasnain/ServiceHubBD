@@ -5,7 +5,7 @@
 
 # dotenv files
 .env
-
+PROJECT_CONTEXT.md
 docs/
 
 # User-specific files
