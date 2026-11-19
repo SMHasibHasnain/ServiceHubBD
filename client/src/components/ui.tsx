@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Link, type LinkProps } from "react-router";
-import { AlertCircle, CheckCircle2, Loader2, X } from "lucide-react";
+import { Link, useParams, type LinkProps } from "react-router";
+import { ApiError } from "../api/client";
+import { AlertCircle, CheckCircle2, Loader2, Lock, X } from "lucide-react";
 import type { Tone } from "../lib/format";
 import { EmptyArt } from "./brand";
 
@@ -57,8 +58,19 @@ export function Field({ label, error, hint, optional, children }: {
 }
 
 export function ErrorBox({ error }: { error: unknown }) {
+  const { businessId } = useParams();
   if (!error) return null;
   const message = error instanceof Error ? error.message : "দুঃখিত, একটি সমস্যা হয়েছে।";
+  // Plan limits read as an upgrade prompt rather than a failure.
+  if (error instanceof ApiError && error.code === "plan_limit_reached") {
+    return (
+      <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-900">
+        <Lock className="size-4 shrink-0" aria-hidden />
+        <span className="flex-1">{message}</span>
+        {businessId && <Link to={`/w/${businessId}/billing`} className="font-semibold text-primary hover:text-primary-hover">প্ল্যান দেখুন →</Link>}
+      </div>
+    );
+  }
   return (
     <div role="alert" className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800">
       <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
