@@ -7,6 +7,7 @@ using ServiceHub.Api.Common;
 using ServiceHub.Api.Data;
 using ServiceHub.Api.Domain;
 using ServiceHub.Api.Domain.Entities;
+using ServiceHub.Api.Features.Billing;
 
 namespace ServiceHub.Api.Features.Services;
 
@@ -38,7 +39,7 @@ public record ServiceDto(Guid Id, Guid BusinessId, string Name, string Slug, int
 [ApiController]
 [Authorize]
 [Route("api/businesses/{businessId:guid}/services")]
-public class ServicesController(AppDbContext db, AccessService access, AuditLogger audit) : ControllerBase
+public class ServicesController(AppDbContext db, AccessService access, AuditLogger audit, EntitlementService plans) : ControllerBase
 {
     private const int MaxFeatured = 3;
 
@@ -70,6 +71,8 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
     public async Task<ActionResult<ServiceDto>> Create(Guid businessId, UpsertServiceRequest req)
     {
         var member = await access.RequireBusinessAsync(businessId, P.ServicesManage);
+        await plans.RequireCapacityAsync(businessId, E.ServicesMax, await db.Services.CountAsync(x => x.BusinessId == businessId));
+        await plans.RequireCapacityAsync(businessId, E.BookingFieldsMax, 0, req.BookingFields?.Count ?? 0);
         var s = new Service { BusinessId = businessId, Slug = await UniqueSlugAsync(businessId, req.Name, null) };
         await ApplyAsync(s, req);
         db.Services.Add(s);
@@ -83,6 +86,9 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
     {
         var member = await access.RequireBusinessAsync(businessId, P.ServicesManage);
         var s = await LoadAsync(businessId, id);
+        // Over-limit forms kept from a bigger plan stay editable; they just can't grow.
+        var fields = req.BookingFields?.Count ?? 0;
+        if (fields > s.BookingFields.Count) await plans.RequireCapacityAsync(businessId, E.BookingFieldsMax, 0, fields);
         if (s.Name != req.Name) s.Slug = await UniqueSlugAsync(businessId, req.Name, s.Id);
         await ApplyAsync(s, req);
         audit.Log("service.update", "service", s.Id, businessId: businessId, scope: RoleScope.Business, roleId: member.RoleId);
@@ -94,6 +100,7 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
     public async Task<ActionResult<ServiceDto>> Duplicate(Guid businessId, Guid id)
     {
         await access.RequireBusinessAsync(businessId, P.ServicesManage);
+        await plans.RequireCapacityAsync(businessId, E.ServicesMax, await db.Services.CountAsync(x => x.BusinessId == businessId));
         var src = await LoadAsync(businessId, id);
         var name = src.Name + " (কপি)";
         var copy = new Service
