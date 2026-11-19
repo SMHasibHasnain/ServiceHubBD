@@ -7,6 +7,7 @@ using ServiceHub.Api.Common;
 using ServiceHub.Api.Data;
 using ServiceHub.Api.Domain;
 using ServiceHub.Api.Domain.Entities;
+using ServiceHub.Api.Features.Billing;
 
 namespace ServiceHub.Api.Features.Team;
 
@@ -31,7 +32,7 @@ public record UpdateMemberRequest(string? RoleKey, [StringLength(80)] string? Ti
 [Authorize]
 [Route("api")]
 public class TeamController(AppDbContext db, ICurrentUser me, AccessService access, AuditLogger audit, Notifier notifier,
-    ISmsSender sms) : ControllerBase
+    ISmsSender sms, EntitlementService plans) : ControllerBase
 {
     private const int InvitationDays = 7;
 
@@ -72,6 +73,8 @@ public class TeamController(AppDbContext db, ICurrentUser me, AccessService acce
         var invitee = await db.Users.FirstOrDefaultAsync(u => u.Phone == phone);
         if (invitee is not null && await db.BusinessMembers.AnyAsync(m => m.BusinessId == businessId && m.UserId == invitee.Id && m.Status != MemberStatus.Removed))
             throw new ConflictException("এই ব্যক্তি ইতিমধ্যে টিমে আছেন।", "already_member");
+        // Re-inviting the same phone replaces the old invitation, so it doesn't count twice.
+        await plans.RequireCapacityAsync(businessId, E.MembersMax, await plans.TeamSizeAsync(businessId, exceptInvitePhone: phone));
         await db.BusinessInvitations.Where(i => i.BusinessId == businessId && i.InviteePhone == phone && i.Status == InvitationStatus.Pending)
             .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, InvitationStatus.Revoked));
 
