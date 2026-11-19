@@ -530,3 +530,45 @@ export interface CustomerStats {
   totalBookings: number; completed: number; upcoming: number; cancelled: number; totalSpent: number;
   reviewsGiven: number; businessesUsed: number; topCategory: string | null;
 }
+
+// ---------- Subscriptions ----------
+
+export type SubscriptionStatus = "trialing" | "active" | "past_due" | "cancelled" | "expired";
+export type BillingCycle = "monthly" | "yearly";
+export type InvoiceStatus = "open" | "pending_verification" | "paid" | "void";
+export type PaymentMethod = "bkash" | "nagad" | "bank_transfer" | "cash" | "complimentary";
+export type PaymentClaimStatus = "pending" | "verified" | "rejected";
+
+export interface Plan { key: string; nameBn: string; nameEn: string; taglineBn: string | null; priceMonthly: number; priceYearly: number; entitlements: Record<string, number> }
+export interface PlanFeature { key: string; labelBn: string; kind: "limit" | "switch"; unitBn: string | null }
+export interface PaymentAccount { method: PaymentMethod; label: string; number: string; accountName: string | null; instructions: string | null }
+export interface PlansResponse { plans: Plan[]; features: PlanFeature[]; trialDays: number; graceDays: number; paymentAccounts: PaymentAccount[] }
+
+export interface BusinessPlan {
+  planKey: string; planName: string; status: SubscriptionStatus | null; cycle: BillingCycle | null;
+  trialEndsAt: IsoDateTime | null; currentPeriodEnd: IsoDateTime | null; graceEndsAt: IsoDateTime | null;
+  cancelAtPeriodEnd: boolean; isPaid: boolean; isTrial: boolean; trialUsed: boolean;
+  limits: Record<string, number>; usage: { services: number; members: number };
+}
+
+export interface PaymentClaim {
+  id: Guid; method: PaymentMethod; amount: number; transactionId: string | null; senderNumber: string | null;
+  status: PaymentClaimStatus; createdAt: IsoDateTime; reviewedAt: IsoDateTime | null; reviewNote: string | null;
+}
+export interface Invoice {
+  id: Guid; number: string; planKey: string; planName: string; cycle: BillingCycle; subtotal: number; credit: number; total: number;
+  status: InvoiceStatus; periodStart: IsoDateTime | null; periodEnd: IsoDateTime | null; createdAt: IsoDateTime; paidAt: IsoDateTime | null;
+  payments: PaymentClaim[];
+}
+
+export interface AdminPayment {
+  id: Guid; businessId: Guid; businessName: string; invoiceNumber: string; planName: string; cycle: BillingCycle; invoiceTotal: number;
+  method: PaymentMethod; amount: number; transactionId: string | null; senderNumber: string | null; status: PaymentClaimStatus;
+  submittedByName: string; createdAt: IsoDateTime; reviewedAt: IsoDateTime | null; reviewNote: string | null;
+}
+export interface AdminSubscription {
+  businessId: Guid; businessName: string; slug: string; businessStatus: string; ownerName: string; planKey: string; planName: string;
+  status: SubscriptionStatus | null; cycle: BillingCycle | null; trialEndsAt: IsoDateTime | null; currentPeriodEnd: IsoDateTime | null;
+  cancelAtPeriodEnd: boolean;
+}
+export interface BillingSummary { mrr: number; activePaid: number; trialing: number; pastDue: number; pendingPayments: number; revenue30d: number; paidByPlan: Record<string, number> }
