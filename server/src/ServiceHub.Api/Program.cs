@@ -13,6 +13,7 @@ using ServiceHub.Api.Data;
 using ServiceHub.Api.Domain;
 using ServiceHub.Api.Domain.Entities;
 using ServiceHub.Api.Features.Auth;
+using ServiceHub.Api.Features.Billing;
 using ServiceHub.Api.Features.Bookings;
 using ServiceHub.Api.Features.Inspections;
 
@@ -40,6 +41,10 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<InspectionRouter>();
+builder.Services.Configure<BillingOptions>(config.GetSection(BillingOptions.Section));
+builder.Services.AddScoped<EntitlementService>();
+builder.Services.AddScoped<SubscriptionService>();
+builder.Services.AddHostedService<SubscriptionWorker>();
 builder.Services.AddSingleton<ISmsSender, LoggingSmsSender>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
