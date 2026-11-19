@@ -4,6 +4,7 @@ using ServiceHub.Api.Access;
 using ServiceHub.Api.Common;
 using ServiceHub.Api.Domain;
 using ServiceHub.Api.Domain.Entities;
+using ServiceHub.Api.Features.Billing;
 
 namespace ServiceHub.Api.Data;
 
@@ -27,6 +28,7 @@ public class DataSeeder(AppDbContext db, IPasswordHasher<User> hasher, ILogger<D
     {
         await SyncAccessCatalogAsync(ct);
         await SeedCategoriesAsync(ct);
+        await SyncPlansAsync(ct);
         if (options.SampleZones) await SeedZonesAsync(ct);
         await SeedSuperAdminAsync(options, ct);
     }
@@ -154,6 +156,34 @@ public class DataSeeder(AppDbContext db, IPasswordHasher<User> hasher, ILogger<D
                 Code = $"Z{z.Id}", NameBn = z.Bn, NameEn = z.En, Slug = Slugs.Create(z.En, withSuffix: false) + "-" + z.Id,
                 Path = new LTree(path),
             });
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Plans follow Features/Billing/PlanCatalog: entitlements always, names/prices only when first created.</summary>
+    private async Task SyncPlansAsync(CancellationToken ct)
+    {
+        var plans = await db.SubscriptionPlans.Include(p => p.Entitlements).ToDictionaryAsync(p => p.Key, ct);
+        foreach (var (def, order) in PlanCatalog.All.Select((d, i) => (d, (short)i)))
+        {
+            if (!plans.TryGetValue(def.Key, out var plan))
+            {
+                plan = new SubscriptionPlan
+                {
+                    Id = def.Id, Key = def.Key, NameBn = def.NameBn, NameEn = def.NameEn, TaglineBn = def.TaglineBn,
+                    PriceMonthly = def.PriceMonthly, PriceYearly = def.PriceYearly,
+                };
+                db.SubscriptionPlans.Add(plan);
+            }
+            plan.SortOrder = order;
+            plan.TaglineBn = def.TaglineBn;
+            plan.Entitlements.RemoveAll(e => !def.Entitlements.ContainsKey(e.Key));
+            foreach (var (key, value) in def.Entitlements)
+            {
+                var row = plan.Entitlements.FirstOrDefault(e => e.Key == key);
+                if (row is null) plan.Entitlements.Add(new PlanEntitlement { PlanId = def.Id, Key = key, Value = value });
+                else row.Value = value;
+            }
         }
         await db.SaveChangesAsync(ct);
     }
