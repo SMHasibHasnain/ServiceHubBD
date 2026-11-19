@@ -23,6 +23,7 @@ public static class P
     public const string ReviewsReply = "reviews.reply";
     public const string ReviewsReport = "reviews.report";
     public const string AnalyticsView = "analytics.view";
+    public const string BillingManage = "billing.manage";
 
     // ----- platform / zone scope -----
     public const string UsersView = "users.view";
@@ -39,6 +40,7 @@ public static class P
     public const string InspectionsPerform = "inspections.perform";
     public const string CampaignsManage = "campaigns.manage";
     public const string AuditView = "audit.view";
+    public const string SubscriptionsManage = "subscriptions.manage";
 
     public static readonly (string Key, RoleScope Scope, string Module, string Description)[] All =
     [
@@ -59,6 +61,7 @@ public static class P
         (ReviewsReply, RoleScope.Business, "reviews", "রিভিউর উত্তর"),
         (ReviewsReport, RoleScope.Business, "reviews", "রিভিউ রিপোর্ট"),
         (AnalyticsView, RoleScope.Business, "analytics", "বিশ্লেষণ দেখা"),
+        (BillingManage, RoleScope.Business, "billing", "সাবস্ক্রিপশন ও পেমেন্ট ব্যবস্থাপনা"),
 
         (UsersView, RoleScope.Platform, "users", "ব্যবহারকারী দেখা"),
         (UsersManage, RoleScope.Platform, "users", "ব্যবহারকারী স্থগিত/সক্রিয়"),
@@ -74,6 +77,7 @@ public static class P
         (InspectionsPerform, RoleScope.Zone, "inspection", "জোনে পরিদর্শন সম্পাদন"),
         (CampaignsManage, RoleScope.Platform, "marketing", "ক্যাম্পেইন ব্যবস্থাপনা"),
         (AuditView, RoleScope.Platform, "admin", "অডিট লগ দেখা"),
+        (SubscriptionsManage, RoleScope.Platform, "billing", "সাবস্ক্রিপশন, পেমেন্ট যাচাই ও প্ল্যান প্রদান"),
     ];
 }
 
