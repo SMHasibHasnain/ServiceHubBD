@@ -167,6 +167,9 @@ export default function Landing() {
                 <Link to="/business/new" className="inline-flex min-h-12 items-center gap-2 rounded-md bg-white px-6 font-semibold text-brand-navy shadow-lift hover:bg-blue-50">
                   ব্যবসা পেজ তৈরি করুন <ArrowRight className="size-4" aria-hidden />
                 </Link>
+                <Link to="/pricing" className="inline-flex min-h-12 items-center rounded-md border border-white/30 px-6 font-semibold text-white hover:bg-white/10">
+                  প্ল্যান ও মূল্য দেখুন
+                </Link>
               </div>
             </div>
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
