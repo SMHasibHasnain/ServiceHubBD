@@ -7,6 +7,7 @@ using ServiceHub.Api.Common;
 using ServiceHub.Api.Data;
 using ServiceHub.Api.Domain;
 using ServiceHub.Api.Domain.Entities;
+using ServiceHub.Api.Features.Billing;
 
 namespace ServiceHub.Api.Features.Crm;
 
@@ -30,7 +31,7 @@ public record AddNoteRequest([Required, StringLength(2000, MinimumLength = 1)] s
 [ApiController]
 [Authorize]
 [Route("api/businesses/{businessId:guid}/customers")]
-public class CustomersController(AppDbContext db, AccessService access, ICurrentUser me) : ControllerBase
+public class CustomersController(AppDbContext db, AccessService access, ICurrentUser me, EntitlementService plans) : ControllerBase
 {
     /// <summary>No visit in this many days marks a customer inactive.</summary>
     private const int InactiveDays = 90;
@@ -82,6 +83,7 @@ public class CustomersController(AppDbContext db, AccessService access, ICurrent
     public async Task<ActionResult<CustomerDto>> Update(Guid businessId, Guid id, UpdateCustomerRequest req)
     {
         await access.RequireBusinessAsync(businessId, P.CustomersManage);
+        await plans.RequireFeatureAsync(businessId, E.CrmNotes);
         var c = await LoadAsync(businessId, id);
         if (req.IsVip is not null) c.IsVip = req.IsVip.Value;
         if (req.Tags is not null) c.Tags = req.Tags.Select(t => t.Trim()).Where(t => t.Length > 0).Distinct().Take(20).ToList();
@@ -93,6 +95,7 @@ public class CustomersController(AppDbContext db, AccessService access, ICurrent
     public async Task<ActionResult<NoteDto>> AddNote(Guid businessId, Guid id, AddNoteRequest req)
     {
         await access.RequireBusinessAsync(businessId, P.CustomersNotes);
+        await plans.RequireFeatureAsync(businessId, E.CrmNotes);
         await LoadAsync(businessId, id);
         var userId = me.RequireId();
         var note = new CustomerNote { BusinessCustomerId = id, AuthorId = userId, Body = req.Body.Trim(), IsPinned = req.IsPinned };
