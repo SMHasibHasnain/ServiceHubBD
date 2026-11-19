@@ -60,6 +60,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Seed:SuperAdminPhone", AdminPhone);
         builder.UseSetting("Seed:SuperAdminPassword", AdminPassword);
         builder.UseSetting("RateLimits:AuthPerMinute", "100000");
+        builder.UseSetting("Billing:RunMaintenance", "false"); // tests drive maintenance explicitly
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<ISmsSender>();
