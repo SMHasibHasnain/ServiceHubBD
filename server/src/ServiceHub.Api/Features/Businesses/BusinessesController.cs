@@ -8,6 +8,7 @@ using ServiceHub.Api.Common;
 using ServiceHub.Api.Data;
 using ServiceHub.Api.Domain;
 using ServiceHub.Api.Domain.Entities;
+using ServiceHub.Api.Features.Billing;
 
 namespace ServiceHub.Api.Features.Businesses;
 
@@ -80,7 +81,7 @@ public record BusinessDto(
 [ApiController]
 [Authorize]
 [Route("api/businesses")]
-public class BusinessesController(AppDbContext db, ICurrentUser me, AccessService access, AuditLogger audit) : ControllerBase
+public class BusinessesController(AppDbContext db, ICurrentUser me, AccessService access, AuditLogger audit, EntitlementService plans) : ControllerBase
 {
     private static readonly VerificationStatus[] EditableForSubmit =
         [VerificationStatus.Draft, VerificationStatus.Rejected, VerificationStatus.InfoRequested];
@@ -188,6 +189,7 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
     public async Task<ActionResult<BookingSettingsDto>> SetBookingSettings(Guid id, BookingSettingsDto req)
     {
         await access.RequireBusinessAsync(id, P.BusinessUpdate);
+        if (req.AutoConfirm) await plans.RequireFeatureAsync(id, E.AutoConfirm);
         var s = await db.BusinessBookingSettings.FirstAsync(x => x.BusinessId == id);
         s.AutoConfirm = req.AutoConfirm;
         s.SlotIntervalMinutes = req.SlotIntervalMinutes;
