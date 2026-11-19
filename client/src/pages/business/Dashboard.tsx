@@ -1,11 +1,12 @@
 import { Link, useOutletContext } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CalendarDays, CheckCircle2, Circle, Clock, ImagePlus, Package, Settings, Star, Users, XCircle } from "lucide-react";
+import { AlertTriangle, CalendarDays, Sparkles, CheckCircle2, Circle, Clock, ImagePlus, Package, Settings, Star, Users, XCircle } from "lucide-react";
 import { api } from "../../api/client";
 import type { Booking, BusinessAnalytics, BusinessDetail, Paged, Service } from "../../api/types";
 import { KpiTile, LineChart, STATUS_COLOR, VIZ, fmt } from "../../components/charts";
 import { Badge, EmptyState, LinkButton, Skeleton, Stat } from "../../components/ui";
 import { BOOKING_STATUS, VERIFICATION_STATUS, bn, dateLong, timeOnly, todayBd } from "../../lib/format";
+import { daysLeft, useBusinessPlan } from "../../lib/billing";
 
 export const useBiz = () => useOutletContext<BusinessDetail | undefined>();
 
@@ -61,6 +62,8 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {can("billing.manage") && <PlanBanner businessId={biz.id} />}
 
       {biz.verificationStatus !== "approved" && (
         <section className="card flex flex-col gap-3 border-amber-200 bg-amber-50/40 p-5">
@@ -179,5 +182,23 @@ function WeekSnapshot({ businessId }: { businessId: string }) {
         ]} />
       </div>
     </section>
+  );
+}
+
+/** Only speaks up when something needs the owner's attention: a running trial, a due renewal, a scheduled cancel. */
+function PlanBanner({ businessId }: { businessId: string }) {
+  const { data: p } = useBusinessPlan(businessId);
+  if (!p) return null;
+  let tone = "border-blue-200 bg-blue-50/60", text: string;
+  if (p.isTrial) text = `${p.planName} ট্রায়াল চলছে — আর ${bn(daysLeft(p.trialEndsAt))} দিন বাকি। ট্রায়াল শেষে ফ্রি প্ল্যান চালু হবে।`;
+  else if (p.status === "past_due") { tone = "border-amber-200 bg-amber-50"; text = `প্ল্যানের নবায়ন বাকি — ${bn(daysLeft(p.graceEndsAt))} দিনের মধ্যে নবায়ন না করলে ফ্রি প্ল্যানে চলে যাবে।`; }
+  else if (p.isPaid && p.cancelAtPeriodEnd) text = `${p.planName} প্ল্যান ${bn(daysLeft(p.currentPeriodEnd))} দিন পর শেষ হবে।`;
+  else return null;
+  return (
+    <div className={`flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 text-sm ${tone}`}>
+      <Sparkles className="size-4 shrink-0 text-primary" aria-hidden />
+      <span className="flex-1">{text}</span>
+      <Link to="billing" className="font-semibold text-primary hover:text-primary-hover">প্ল্যান দেখুন →</Link>
+    </div>
   );
 }
