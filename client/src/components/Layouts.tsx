@@ -2,7 +2,7 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart3, Bell, CalendarDays, ClipboardCheck, Eye, Flag, Home, LayoutDashboard, Menu, Package, ScrollText,
+  BarChart3, Bell, CalendarDays, ClipboardCheck, CreditCard, Eye, Flag, Home, LayoutDashboard, Menu, Package, ScrollText,
   Search, Settings, ShieldCheck, Star, User as UserIcon, Users, UsersRound,
 } from "lucide-react";
 import { api } from "../api/client";
@@ -71,7 +71,7 @@ function Footer() {
         </div>
         {[
           { title: "গ্রাহকের জন্য", links: [["সেবা খুঁজুন", "/search"], ["আমার বুকিং", "/me/bookings"], ["কীভাবে কাজ করে", "/#how"]] },
-          { title: "ব্যবসার জন্য", links: [["ব্যবসা পেজ তৈরি", "/business/new"], ["যাচাইকরণ", "/#how"], ["লগইন", "/login"]] },
+          { title: "ব্যবসার জন্য", links: [["ব্যবসা পেজ তৈরি", "/business/new"], ["প্ল্যান ও মূল্য", "/pricing"], ["যাচাইকরণ", "/#how"], ["লগইন", "/login"]] },
           { title: "ServiceHub BD", links: [["গোপনীয়তা নীতি", "#"], ["শর্তাবলি", "#"], ["যোগাযোগ", "#"]] },
         ].map((col) => (
           <nav key={col.title} aria-label={col.title} className="flex flex-col gap-2.5 text-sm">
@@ -209,6 +209,7 @@ export function BusinessLayout() {
     { to: `${base}/analytics`, label: "বিশ্লেষণ", icon: BarChart3, permission: "analytics.view" },
     { to: `${base}/team`, label: "টিম ও ভূমিকা", icon: UsersRound, permission: "members.view" },
     { to: `${base}/settings`, label: "ব্যবসার সেটিংস", icon: Settings, permission: "business.update" },
+    { to: `${base}/billing`, label: "সাবস্ক্রিপশন", icon: CreditCard, permission: "billing.manage" },
   ];
   const header = biz && (
     <div className="mt-1 mb-3 flex items-center gap-2.5 rounded-lg border border-line bg-bg px-2.5 py-2.5">
@@ -255,6 +256,7 @@ const PLATFORM_NAV: Record<"moderation" | "inspection" | "administration", NavIt
     { to: "/admin", label: "বিশ্লেষণ ড্যাশবোর্ড", icon: LayoutDashboard, end: true },
     { to: "/admin/users", label: "ব্যবহারকারী", icon: Users },
     { to: "/admin/roles", label: "ভূমিকা ও অনুমতি", icon: ShieldCheck },
+    { to: "/admin/billing", label: "সাবস্ক্রিপশন ও পেমেন্ট", icon: CreditCard },
     { to: "/admin/audit", label: "অডিট লগ", icon: ScrollText },
   ],
 };
