@@ -5,6 +5,7 @@ using ServiceHub.Api.Access;
 using ServiceHub.Api.Common;
 using ServiceHub.Api.Data;
 using ServiceHub.Api.Domain;
+using ServiceHub.Api.Features.Billing;
 
 namespace ServiceHub.Api.Features.Analytics;
 
@@ -97,7 +98,7 @@ public record BusinessAnalyticsDto(int Days, DateOnly From, DateOnly To,
 
 [ApiController]
 [Authorize]
-public class AnalyticsController(AppDbContext db, ICurrentUser me, AccessService access) : ControllerBase
+public class AnalyticsController(AppDbContext db, ICurrentUser me, AccessService access, EntitlementService plans) : ControllerBase
 {
     /// <summary>
     /// Business performance for the last 7/30/90 days, compared with the period before it.
@@ -105,10 +106,10 @@ public class AnalyticsController(AppDbContext db, ICurrentUser me, AccessService
     /// The heatmap uses the appointment time, to show when demand actually lands.
     /// </summary>
     [HttpGet("api/businesses/{businessId:guid}/analytics")]
-    public async Task<ActionResult<BusinessAnalyticsDto>> Business(Guid businessId, [FromQuery] int days = 30)
+    public async Task<ActionResult<BusinessAnalyticsDto>> Business(Guid businessId, [FromQuery] int? days = null)
     {
         await access.RequireBusinessAsync(businessId, P.AnalyticsView);
-        var p = Period.Last(days);
+        var p = Period.Last(await plans.AnalyticsDaysAsync(businessId, days is 7 or 30 or 90 ? days : days is null ? null : 30));
 
         var rows = await db.Bookings.AsNoTracking()
             .Where(b => b.BusinessId == businessId && b.CreatedAt >= p.PrevStartUtc && b.CreatedAt < p.EndUtc)
