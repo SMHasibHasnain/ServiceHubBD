@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { useSearchParams } from "react-router";
-import { ArrowDownRight, ArrowUpRight, BarChart3, Minus, Table2 } from "lucide-react";
+import { Link, useSearchParams } from "react-router";
+import { ArrowDownRight, ArrowUpRight, BarChart3, Lock, Minus, Table2 } from "lucide-react";
 import type { Metric, Slice, TimeSeries } from "../api/types";
 import { bn, num, taka } from "../lib/format";
 import { Segmented } from "./ui";
@@ -76,17 +76,26 @@ export function useRange(defaultDays = 30) {
   return [days, setDays] as const;
 }
 
-export function RangeTabs({ days, onChange }: { days: number; onChange: (d: number) => void }) {
-  return (
-    <Segmented label="সময়সীমা" value={String(days)} onChange={(v) => onChange(Number(v))}
-      options={[{ value: "7", label: "গত ৭ দিন" }, { value: "30", label: "গত ৩০ দিন" }, { value: "90", label: "গত ৯০ দিন" }]} />
-  );
+const RANGES = [{ value: "7", label: "গত ৭ দিন" }, { value: "30", label: "গত ৩০ দিন" }, { value: "90", label: "গত ৯০ দিন" }];
+
+export function RangeTabs({ days, onChange, maxDays }: { days: number; onChange: (d: number) => void; maxDays?: number }) {
+  const open = RANGES.filter((r) => maxDays == null || maxDays < 0 || Number(r.value) <= maxDays);
+  return <Segmented label="সময়সীমা" value={String(days)} onChange={(v) => onChange(Number(v))} options={open} />;
 }
 
-export function AnalyticsToolbar({ days, onChange, from, to, children }: { days: number; onChange: (d: number) => void; from?: string; to?: string; children?: ReactNode }) {
+/** `locked` = ranges the plan doesn't include, shown as upgrade links next to the open ones. */
+export function AnalyticsToolbar({ days, onChange, from, to, children, maxDays, upgradeTo }: {
+  days: number; onChange: (d: number) => void; from?: string; to?: string; children?: ReactNode; maxDays?: number; upgradeTo?: string;
+}) {
+  const locked = maxDays != null && maxDays >= 0 ? RANGES.filter((r) => Number(r.value) > maxDays) : [];
   return (
     <div className="mb-5 flex flex-wrap items-center gap-3">
-      <RangeTabs days={days} onChange={onChange} />
+      <RangeTabs days={days} onChange={onChange} maxDays={maxDays} />
+      {locked.length > 0 && upgradeTo && (
+        <Link to={upgradeTo} className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-dashed border-amber-300 bg-amber-50 px-3 text-sm font-medium text-amber-900 hover:bg-amber-100">
+          <Lock className="size-3.5" aria-hidden />{locked.map((r) => r.label.replace("গত ", "")).join(" ও ")} — প্ল্যান আপগ্রেড করুন
+        </Link>
+      )}
       {from && to && <span className="text-sm text-subtle">{dayLabel(from)} – {dayLabel(to)} · আগের {bn(days)} দিনের সাথে তুলনা</span>}
       {children}
     </div>
