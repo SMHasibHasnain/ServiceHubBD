@@ -4,6 +4,7 @@ using ServiceHub.Api.Common;
 using ServiceHub.Api.Data;
 using ServiceHub.Api.Domain;
 using ServiceHub.Api.Domain.Entities;
+using ServiceHub.Api.Features.Billing;
 
 namespace ServiceHub.Api.Features.Bookings;
 
@@ -13,7 +14,7 @@ public record CreateBookingCommand(Guid ServiceId, DateOnly Date, TimeOnly Time,
     string? ServiceAddress, string? Note, List<FieldAnswer>? Answers, string? ClientRequestId, BookingSource Source);
 
 /// <summary>Booking creation and the booking state machine (see docs/database/ERD.md §11).</summary>
-public class BookingService(AppDbContext db, AvailabilityService availability, Notifier notifier, ICurrentUser me)
+public class BookingService(AppDbContext db, AvailabilityService availability, Notifier notifier, ICurrentUser me, EntitlementService plans)
 {
     /// <summary>Allowed transitions. Every transition is written to booking_status_history.</summary>
     private static readonly Dictionary<BookingStatus, BookingStatus[]> Transitions = new()
@@ -62,7 +63,8 @@ public class BookingService(AppDbContext db, AvailabilityService availability, N
 
         var customer = await UpsertCustomerAsync(business.Id, userId, name, phone, user.Email);
         var seq = await db.Database.SqlQuery<long>($"SELECT nextval('booking_number_seq') AS \"Value\"").SingleAsync();
-        var autoConfirm = business.BookingSettings?.AutoConfirm == true;
+        // A setting kept from an earlier paid plan doesn't keep working after a downgrade.
+        var autoConfirm = business.BookingSettings?.AutoConfirm == true && await plans.HasAsync(business.Id, E.AutoConfirm);
         var booking = new Booking
         {
             BookingNumber = $"SH-{BdTime.Today():yy}-{seq:D6}",
