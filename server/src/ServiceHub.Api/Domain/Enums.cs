@@ -64,3 +64,15 @@ public enum ModerationActionType
     SuspendBusiness, ReinstateBusiness, ResolveReport, DismissReport, EscalateReport,
     RequestInspection
 }
+
+// ---------- Subscriptions ----------
+
+public enum SubscriptionStatus { Trialing, Active, PastDue, Cancelled, Expired }
+
+public enum BillingCycle { Monthly, Yearly }
+
+public enum InvoiceStatus { Open, PendingVerification, Paid, Void }
+
+public enum SubscriptionPaymentMethod { Bkash, Nagad, BankTransfer, Cash, Complimentary }
+
+public enum SubscriptionPaymentStatus { Pending, Verified, Rejected }
