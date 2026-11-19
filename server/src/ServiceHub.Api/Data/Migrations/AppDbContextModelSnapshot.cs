@@ -29,6 +29,8 @@ namespace ServiceHub.Api.Data.Migrations
             modelBuilder.HasSequence("booking_number_seq")
                 .StartsAt(1000L);
 
+            modelBuilder.HasSequence("invoice_number_seq");
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<long>("Id")
@@ -914,6 +916,76 @@ namespace ServiceHub.Api.Data.Migrations
                     b.ToTable("business_members", (string)null);
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BusinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_id");
+
+                    b.Property<bool>("CancelAtPeriodEnd")
+                        .HasColumnType("boolean")
+                        .HasColumnName("cancel_at_period_end");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("CurrentPeriodEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("current_period_end");
+
+                    b.Property<DateTime?>("CurrentPeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("current_period_start");
+
+                    b.Property<string>("Cycle")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("cycle");
+
+                    b.Property<short>("PlanId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("plan_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("TrialEndsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("trial_ends_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_business_subscriptions");
+
+                    b.HasIndex("BusinessId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_business_subscriptions_business_id");
+
+                    b.HasIndex("PlanId")
+                        .HasDatabaseName("ix_business_subscriptions_plan_id");
+
+                    b.HasIndex("Status", "CurrentPeriodEnd")
+                        .HasDatabaseName("ix_business_subscriptions_status_current_period_end");
+
+                    b.ToTable("business_subscriptions", (string)null);
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -1408,6 +1480,27 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasDatabaseName("ix_permissions_key");
 
                     b.ToTable("permissions", (string)null);
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.PlanEntitlement", b =>
+                {
+                    b.Property<short>("PlanId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("plan_id");
+
+                    b.Property<string>("Key")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("key");
+
+                    b.Property<int>("Value")
+                        .HasColumnType("integer")
+                        .HasColumnName("value");
+
+                    b.HasKey("PlanId", "Key")
+                        .HasName("pk_plan_entitlements");
+
+                    b.ToTable("plan_entitlements", (string)null);
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.PlatformRoleAssignment", b =>
@@ -1955,6 +2048,282 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasDatabaseName("ix_service_booking_fields_service_id");
 
                     b.ToTable("service_booking_fields", (string)null);
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SubscriptionEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid?>("ActorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_id");
+
+                    b.Property<Guid>("BusinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Data")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("data");
+
+                    b.Property<string>("FromPlan")
+                        .HasColumnType("text")
+                        .HasColumnName("from_plan");
+
+                    b.Property<string>("ToPlan")
+                        .HasColumnType("text")
+                        .HasColumnName("to_plan");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_subscription_events");
+
+                    b.HasIndex("BusinessId", "CreatedAt")
+                        .HasDatabaseName("ix_subscription_events_business_id_created_at");
+
+                    b.HasIndex("BusinessId", "Type")
+                        .HasDatabaseName("ix_subscription_events_business_id_type");
+
+                    b.ToTable("subscription_events", (string)null);
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SubscriptionInvoice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BusinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<decimal>("Credit")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("credit");
+
+                    b.Property<string>("Cycle")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("cycle");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("number");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paid_at");
+
+                    b.Property<DateTime?>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_end");
+
+                    b.Property<DateTime?>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_start");
+
+                    b.Property<short>("PlanId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("plan_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("subtotal");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("total");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_subscription_invoices");
+
+                    b.HasIndex("Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_subscription_invoices_number");
+
+                    b.HasIndex("PlanId")
+                        .HasDatabaseName("ix_subscription_invoices_plan_id");
+
+                    b.HasIndex("BusinessId", "CreatedAt")
+                        .HasDatabaseName("ix_subscription_invoices_business_id_created_at");
+
+                    b.ToTable("subscription_invoices", (string)null);
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SubscriptionPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("InvoiceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invoice_id");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("method");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<string>("ReviewNote")
+                        .HasColumnType("text")
+                        .HasColumnName("review_note");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<string>("SenderNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("sender_number");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("SubmittedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submitted_by");
+
+                    b.Property<string>("TransactionId")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("transaction_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_subscription_payments");
+
+                    b.HasIndex("InvoiceId")
+                        .HasDatabaseName("ix_subscription_payments_invoice_id");
+
+                    b.HasIndex("Method", "TransactionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_subscription_payments_method_transaction_id")
+                        .HasFilter("transaction_id IS NOT NULL AND status <> 'rejected'");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("ix_subscription_payments_status_created_at");
+
+                    b.ToTable("subscription_payments", (string)null);
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SubscriptionPlan", b =>
+                {
+                    b.Property<short>("Id")
+                        .HasColumnType("smallint")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsPublic")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_public");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("NameBn")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name_bn");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name_en");
+
+                    b.Property<decimal>("PriceMonthly")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("price_monthly");
+
+                    b.Property<decimal>("PriceYearly")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("price_yearly");
+
+                    b.Property<short>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("TaglineBn")
+                        .HasColumnType("text")
+                        .HasColumnName("tagline_bn");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_subscription_plans");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_subscription_plans_key");
+
+                    b.ToTable("subscription_plans", (string)null);
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.User", b =>
@@ -2525,6 +2894,27 @@ namespace ServiceHub.Api.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessSubscription", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_business_subscriptions_businesses_business_id");
+
+                    b.HasOne("ServiceHub.Api.Domain.Entities.SubscriptionPlan", "Plan")
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_business_subscriptions_subscription_plans_plan_id");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("Plan");
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.Category", b =>
                 {
                     b.HasOne("ServiceHub.Api.Domain.Entities.Category", "Parent")
@@ -2687,6 +3077,16 @@ namespace ServiceHub.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_notifications_users_recipient_id");
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.PlanEntitlement", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.SubscriptionPlan", null)
+                        .WithMany("Entitlements")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_plan_entitlements_subscription_plans_plan_id");
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.PlatformRoleAssignment", b =>
@@ -2894,6 +3294,49 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasConstraintName("fk_service_booking_fields_services_service_id");
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SubscriptionEvent", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_subscription_events_businesses_business_id");
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SubscriptionInvoice", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.Business", "Business")
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_subscription_invoices_businesses_business_id");
+
+                    b.HasOne("ServiceHub.Api.Domain.Entities.SubscriptionPlan", "Plan")
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_subscription_invoices_subscription_plans_plan_id");
+
+                    b.Navigation("Business");
+
+                    b.Navigation("Plan");
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SubscriptionPayment", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.SubscriptionInvoice", "Invoice")
+                        .WithMany("Payments")
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_subscription_payments_subscription_invoices_invoice_id");
+
+                    b.Navigation("Invoice");
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.User", b =>
                 {
                     b.HasOne("ServiceHub.Api.Domain.Entities.Business", null)
@@ -3004,6 +3447,16 @@ namespace ServiceHub.Api.Data.Migrations
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.Service", b =>
                 {
                     b.Navigation("BookingFields");
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SubscriptionInvoice", b =>
+                {
+                    b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SubscriptionPlan", b =>
+                {
+                    b.Navigation("Entitlements");
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.User", b =>
