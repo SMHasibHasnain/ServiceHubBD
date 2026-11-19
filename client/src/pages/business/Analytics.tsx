@@ -9,6 +9,7 @@ import {
 } from "../../components/charts";
 import { EmptyState, ErrorBox, LoadingList, PageHeader } from "../../components/ui";
 import { bn } from "../../lib/format";
+import { useBusinessPlan } from "../../lib/billing";
 
 const TREND = [
   { key: "bookings", label: "মোট বুকিং", color: VIZ.series[0] },
@@ -18,11 +19,16 @@ const TREND = [
 export default function BusinessAnalyticsPage() {
   const { businessId } = useParams();
   const biz = useOutletContext<BusinessDetail | undefined>();
-  const [days, setDays] = useRange(30);
+  const [wanted, setDays] = useRange(30);
+  const plan = useBusinessPlan(businessId);
+  const maxDays = plan.data?.limits["analytics.max_days"];
+  // Stay inside what the plan includes; longer ranges show as upgrade links instead of erroring.
+  const days = maxDays != null && maxDays >= 0 && wanted > maxDays ? maxDays : wanted;
   const q = useQuery({
     queryKey: ["business", businessId, "analytics", days],
     queryFn: () => api.get<BusinessAnalytics>(`/api/businesses/${businessId}/analytics`, { days }),
     placeholderData: keepPreviousData,
+    enabled: !!plan.data,
   });
   const allowed = biz?.myPermissions.includes("analytics.view");
   const a = q.data;
@@ -35,7 +41,8 @@ export default function BusinessAnalyticsPage() {
   return (
     <>
       <PageHeader title="ব্যবসার বিশ্লেষণ" subtitle="বুকিং, আয়, গ্রাহক ও রিভিউ — নির্বাচিত সময়ের সাথে আগের সময়ের তুলনা" />
-      <AnalyticsToolbar days={days} onChange={setDays} from={a?.from} to={a?.to} />
+      <AnalyticsToolbar days={days} onChange={setDays} from={a?.from} to={a?.to} maxDays={maxDays}
+        upgradeTo={biz?.myPermissions.includes("billing.manage") ? `/w/${businessId}/billing` : undefined} />
       <ErrorBox error={q.error} />
       {!a ? <LoadingList rows={3} /> : (
         <div className={`flex flex-col gap-5 transition-opacity ${q.isFetching ? "opacity-60" : ""}`}>
