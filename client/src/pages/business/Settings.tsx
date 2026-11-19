@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { Lock, Plus, Trash2 } from "lucide-react";
 import { api } from "../../api/client";
 import type { BookingSettings, DocumentType, VerificationSummary } from "../../api/types";
 import { flattenCategories, useCategories, useZones, ZonePicker } from "../../components/shared";
@@ -9,6 +9,7 @@ import { Badge, Button, ErrorBox, Modal, PageHeader, Skeleton, useToast } from "
 import { DOCUMENT_TYPES, VERIFICATION_STATUS, bn, dateShort } from "../../lib/format";
 import { useBiz } from "./Dashboard";
 import { HoursEditor, hoursFromWeek, weekFromHours } from "./HoursEditor";
+import { useBusinessPlan } from "../../lib/billing";
 
 export default function Settings() {
   const biz = useBiz();
@@ -117,6 +118,8 @@ function BookingSettingsSection() {
   const biz = useBiz()!;
   const saved = useSaved("বুকিং সেটিংস সংরক্ষিত হয়েছে।");
   const [s, setS] = useState<BookingSettings>(biz.bookingSettings);
+  const plan = useBusinessPlan(biz.id);
+  const canAuto = !!plan.data?.limits["bookings.auto_confirm"];
   const save = useMutation({ mutationFn: () => api.put(`/api/businesses/${biz.id}/booking-settings`, s), onSuccess: saved });
   const num = (k: keyof BookingSettings, label: string, hint: string) => (
     <label className="label">{label}<input className="input" type="number" min={0} value={s[k] as number} onChange={(e) => setS({ ...s, [k]: Number(e.target.value) })} /><span className="text-sm font-normal text-subtle">{hint}</span></label>
@@ -125,7 +128,15 @@ function BookingSettingsSection() {
     <section className="card flex flex-col gap-4 p-6">
       <h2 className="text-base font-semibold">বুকিং সেটিংস</h2>
       <ErrorBox error={save.error} />
-      <label className="flex min-h-11 items-center gap-2.5"><input type="checkbox" className="size-5 accent-primary" checked={s.autoConfirm} onChange={(e) => setS({ ...s, autoConfirm: e.target.checked })} />নতুন বুকিং স্বয়ংক্রিয়ভাবে নিশ্চিত করুন</label>
+      <div className="flex flex-wrap items-center gap-x-3">
+        <label className={`flex min-h-11 items-center gap-2.5 ${!canAuto && plan.data ? "text-subtle" : ""}`}>
+          <input type="checkbox" className="size-5 accent-primary" checked={s.autoConfirm && (canAuto || !plan.data)} disabled={!!plan.data && !canAuto}
+            onChange={(e) => setS({ ...s, autoConfirm: e.target.checked })} />নতুন বুকিং স্বয়ংক্রিয়ভাবে নিশ্চিত করুন
+        </label>
+        {plan.data && !canAuto && (
+          <Link to={`/w/${biz.id}/billing`} className="inline-flex items-center gap-1 text-sm font-medium text-amber-800 hover:underline"><Lock className="size-3.5" aria-hidden />প্রো প্ল্যানে পাওয়া যায়</Link>
+        )}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {num("slotIntervalMinutes", "সময়ের ব্যবধান (মিনিট)", "প্রতি কত মিনিটে একটি স্লট")}
         {num("minNoticeMinutes", "ন্যূনতম আগাম সময় (মিনিট)", "এর আগে বুকিং নেওয়া হবে না")}
