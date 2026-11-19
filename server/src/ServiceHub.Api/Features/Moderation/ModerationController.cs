@@ -10,6 +10,7 @@ using ServiceHub.Api.Domain;
 using ServiceHub.Api.Domain.Entities;
 using ServiceHub.Api.Features.Inspections;
 using ServiceHub.Api.Features.Reviews;
+using ServiceHub.Api.Features.Billing;
 
 namespace ServiceHub.Api.Features.Moderation;
 
@@ -50,7 +51,7 @@ public record ReportDto(Guid Id, ReportTarget TargetType, Guid? TargetBusinessId
 [Authorize]
 [Route("api/moderation")]
 public class ModerationController(AppDbContext db, ICurrentUser me, AccessService access, AuditLogger audit, Notifier notifier,
-    InspectionRouter router) : ControllerBase
+    InspectionRouter router, SubscriptionService subscriptions) : ControllerBase
 {
     [HttpGet("verifications")]
     public async Task<ActionResult<PagedResult<QueueItemDto>>> Queue([FromQuery] VerificationStatus? status,
@@ -125,6 +126,7 @@ public class ModerationController(AppDbContext db, ICurrentUser me, AccessServic
         Record(ModerationActionType.ApproveBusiness, req.Reason, v);
         notifier.Notify(v.Business.OwnerId, WorkspaceType.Business, v.BusinessId, "verification.approved",
             "অভিনন্দন! আপনার ব্যবসা যাচাইকৃত হয়েছে।", "আপনার পেজ এখন সবার জন্য প্রকাশিত।");
+        await subscriptions.StartTrialAsync(v.Business);
         await db.SaveChangesAsync();
         return NoContent();
     }
