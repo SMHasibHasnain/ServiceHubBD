@@ -28,6 +28,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<BusinessBookingSettings> BusinessBookingSettings => Set<BusinessBookingSettings>();
     public DbSet<BusinessHour> BusinessHours => Set<BusinessHour>();
     public DbSet<BusinessClosure> BusinessClosures => Set<BusinessClosure>();
+    public DbSet<BusinessNotice> BusinessNotices => Set<BusinessNotice>();
+    public DbSet<BusinessFaq> BusinessFaqs => Set<BusinessFaq>();
+    public DbSet<BusinessHighlight> BusinessHighlights => Set<BusinessHighlight>();
+    public DbSet<GalleryItem> GalleryItems => Set<GalleryItem>();
     public DbSet<Service> Services => Set<Service>();
     public DbSet<ServiceBookingField> ServiceBookingFields => Set<ServiceBookingField>();
     public DbSet<VerificationRequest> VerificationRequests => Set<VerificationRequest>();
@@ -37,6 +41,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<BusinessCustomer> BusinessCustomers => Set<BusinessCustomer>();
     public DbSet<CustomerNote> CustomerNotes => Set<CustomerNote>();
     public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<BookingRescheduleRequest> BookingRescheduleRequests => Set<BookingRescheduleRequest>();
+    public DbSet<StaffLeave> StaffLeaves => Set<StaffLeave>();
+    public DbSet<ReviewPhoto> ReviewPhotos => Set<ReviewPhoto>();
+    public DbSet<InspectionPhoto> InspectionPhotos => Set<InspectionPhoto>();
     public DbSet<BookingFieldResponse> BookingFieldResponses => Set<BookingFieldResponse>();
     public DbSet<BookingStatusHistory> BookingStatusHistory => Set<BookingStatusHistory>();
     public DbSet<Review> Reviews => Set<Review>();
@@ -155,6 +163,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.AvgRating).HasPrecision(2, 1);
             e.Property(x => x.Latitude).HasPrecision(9, 6);
             e.Property(x => x.Longitude).HasPrecision(9, 6);
+            e.Property(x => x.ThemeKey).HasMaxLength(30);
+            e.Property(x => x.HeaderStyle).HasMaxLength(30);
+            e.Property(x => x.PageLayout).HasJson();
             e.HasOne(x => x.Owner).WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Zone).WithMany().HasForeignKey(x => x.ZoneId).OnDelete(DeleteBehavior.SetNull);
@@ -193,6 +204,75 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne<Business>().WithMany().HasForeignKey(x => x.BusinessId);
         });
 
+        // ---------- Field work: reschedules, leave, photos ----------
+        b.Entity<BookingRescheduleRequest>(e =>
+        {
+            e.HasIndex(x => new { x.BookingId, x.Status });
+            e.Property(x => x.Reason).HasMaxLength(500);
+            e.Property(x => x.ResponseNote).HasMaxLength(500);
+            e.HasOne<Booking>().WithMany(x => x.RescheduleRequests).HasForeignKey(x => x.BookingId);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.RequestedBy).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.RespondedBy).OnDelete(DeleteBehavior.SetNull);
+            e.ToTable(t => t.HasCheckConstraint("ck_reschedule_range", "proposed_end_at > proposed_start_at"));
+        });
+        b.Entity<StaffLeave>(e =>
+        {
+            e.HasIndex(x => new { x.BusinessId, x.Status, x.StartDate });
+            e.HasIndex(x => new { x.MemberId, x.Status });
+            e.Property(x => x.Reason).HasMaxLength(300);
+            e.Property(x => x.DecisionNote).HasMaxLength(300);
+            e.HasOne<Business>().WithMany().HasForeignKey(x => x.BusinessId);
+            e.HasOne(x => x.Member).WithMany().HasForeignKey(x => x.MemberId);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.DecidedBy).OnDelete(DeleteBehavior.SetNull);
+            e.ToTable(t => t.HasCheckConstraint("ck_staff_leaves_range", "end_date >= start_date"));
+            e.HasQueryFilter(x => x.Member.Business.DeletedAt == null);
+        });
+        b.Entity<ReviewPhoto>(e =>
+        {
+            e.HasIndex(x => new { x.ReviewId, x.SortOrder });
+            e.Property(x => x.ImageUrl).HasMaxLength(500);
+            e.HasOne<Review>().WithMany(x => x.Photos).HasForeignKey(x => x.ReviewId);
+        });
+        b.Entity<InspectionPhoto>(e =>
+        {
+            e.HasIndex(x => x.InspectionId);
+            e.Property(x => x.ImageUrl).HasMaxLength(500);
+            e.Property(x => x.Caption).HasMaxLength(150);
+            e.HasOne<Inspection>().WithMany(x => x.Photos).HasForeignKey(x => x.InspectionId);
+        });
+
+        // ---------- Public page content ----------
+        b.Entity<BusinessNotice>(e =>
+        {
+            e.HasIndex(x => new { x.BusinessId, x.IsPublished, x.CreatedAt });
+            e.Property(x => x.Title).HasMaxLength(120);
+            e.Property(x => x.Body).HasMaxLength(1000);
+            e.HasOne<Business>().WithMany().HasForeignKey(x => x.BusinessId);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.CreatedBy).OnDelete(DeleteBehavior.SetNull);
+        });
+        b.Entity<BusinessFaq>(e =>
+        {
+            e.HasIndex(x => new { x.BusinessId, x.SortOrder });
+            e.Property(x => x.Question).HasMaxLength(200);
+            e.Property(x => x.Answer).HasMaxLength(1000);
+            e.HasOne<Business>().WithMany().HasForeignKey(x => x.BusinessId);
+        });
+        b.Entity<BusinessHighlight>(e =>
+        {
+            e.HasIndex(x => new { x.BusinessId, x.SortOrder });
+            e.Property(x => x.IconKey).HasMaxLength(30);
+            e.Property(x => x.Title).HasMaxLength(60);
+            e.Property(x => x.Description).HasMaxLength(160);
+            e.HasOne<Business>().WithMany().HasForeignKey(x => x.BusinessId);
+        });
+        b.Entity<GalleryItem>(e =>
+        {
+            e.HasIndex(x => new { x.BusinessId, x.SortOrder });
+            e.Property(x => x.ImageUrl).HasMaxLength(500);
+            e.Property(x => x.Caption).HasMaxLength(150);
+            e.HasOne<Business>().WithMany().HasForeignKey(x => x.BusinessId);
+        });
+
         // ---------- Catalog ----------
         b.Entity<Service>(e =>
         {
@@ -202,6 +282,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Name).HasMaxLength(150);
             e.Property(x => x.Price).HasPrecision(12, 2);
             e.Property(x => x.PriceMax).HasPrecision(12, 2);
+            e.Property(x => x.ImageUrl).HasMaxLength(500);
             e.Property(x => x.AvgRating).HasPrecision(2, 1);
             e.HasOne(x => x.Business).WithMany(x => x.Services).HasForeignKey(x => x.BusinessId);
             e.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
@@ -339,6 +420,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => new { x.Status, x.Severity, x.CreatedAt });
             e.HasIndex(x => x.TargetBusinessId);
             e.HasIndex(x => x.TargetReviewId);
+            e.Property(x => x.TargetContentType).HasMaxLength(20);
             e.HasOne<User>().WithMany().HasForeignKey(x => x.ReporterId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<Business>().WithMany().HasForeignKey(x => x.ReporterBusinessId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.TargetBusiness).WithMany().HasForeignKey(x => x.TargetBusinessId).OnDelete(DeleteBehavior.SetNull);
