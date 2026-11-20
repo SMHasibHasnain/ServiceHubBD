@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Clock, Copy, CreditCard, Hourglass, Receipt, ShieldCheck } from "lucide-react";
 import { api } from "../../api/client";
-import type { BillingCycle, BusinessDetail, BusinessPlan, Invoice, PaymentMethod, Plan, PlansResponse } from "../../api/types";
-import { Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, Segmented, Skeleton, useToast } from "../../components/ui";
+import type { BillingCycle, BusinessDetail, BusinessPlan, Invoice, Paged, PaymentMethod, Plan, PlansResponse } from "../../api/types";
+import { Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PAGE_SIZE, PageHeader, Pagination, Segmented, Skeleton, usePage, useToast } from "../../components/ui";
 import { METHOD_LABEL, PLAN_STATUS, UNLIMITED, daysLeft, featureValue, useBusinessPlan, usePlans } from "../../lib/billing";
 import { bn, dateShort, taka } from "../../lib/format";
 
@@ -28,7 +28,12 @@ export default function Billing() {
   const id = biz?.id;
   const plan = useBusinessPlan(id);
   const plans = usePlans();
-  const invoices = useQuery({ queryKey: ["business", id, "invoices"], queryFn: () => api.get<Invoice[]>(`/api/businesses/${id}/billing/invoices`), enabled: !!id });
+  // Newest first, so an invoice still waiting for payment is always on the first page.
+  const invoices = useQuery({
+    queryKey: ["business", id, "invoices", 1],
+    queryFn: () => api.get<Paged<Invoice>>(`/api/businesses/${id}/billing/invoices`, { page: 1, pageSize: PAGE_SIZE }),
+    enabled: !!id,
+  });
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
 
   if (!biz || plan.isLoading || plans.isLoading) return <LoadingList rows={3} />;
@@ -36,7 +41,7 @@ export default function Billing() {
     return <EmptyState icon={<CreditCard aria-hidden />} title="বিলিং শুধু মালিক দেখতে পারেন" description={`বর্তমান প্ল্যান: ${plan.data?.planName ?? "—"}`} />;
   }
   const p = plan.data!, catalog = plans.data!;
-  const pendingInvoice = invoices.data?.find((i) => i.status === "open" || i.status === "pending_verification");
+  const pendingInvoice = invoices.data?.items.find((i) => i.status === "open" || i.status === "pending_verification");
 
   return (
     <>
@@ -56,7 +61,7 @@ export default function Billing() {
           </div>
           <PlanCards catalog={catalog} current={p} cycle={cycle} businessId={biz.id} blocked={pendingInvoice?.status === "pending_verification"} />
         </section>
-        <InvoiceHistory invoices={invoices.data ?? []} loading={invoices.isLoading} />
+        {id && <InvoiceHistory businessId={id} />}
       </div>
     </>
   );
@@ -108,7 +113,7 @@ function CurrentPlan({ businessId, plan: p }: { businessId: string; plan: Busine
           <span className="text-sm text-subtle">বর্তমান প্ল্যান</span>
           {status && p.planKey !== "free" && <Badge tone={status.tone}>{status.label}</Badge>}
         </div>
-        <div className="text-3xl font-bold text-brand-navy">{p.planName}</div>
+        <div className="text-3xl font-semibold text-primary">{p.planName}</div>
         <p className={`text-sm ${p.status === "past_due" ? "font-medium text-amber-800" : "text-muted"}`}>{line}</p>
         <div className="mt-1 flex flex-wrap gap-2">
           {p.isPaid && !p.cancelAtPeriodEnd && <Button variant="ghost" size="sm" onClick={() => setConfirm(true)}>প্ল্যান বাতিল করুন</Button>}
@@ -158,13 +163,13 @@ function PlanCards({ catalog, current, cycle, businessId, blocked }: { catalog: 
               {popular && <span className="absolute -top-3 left-5 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-white">সবচেয়ে জনপ্রিয়</span>}
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-lg font-bold">{pl.nameBn}</h3>
+                  <h3 className="text-lg font-semibold">{pl.nameBn}</h3>
                   {isCurrent && <Badge tone="green"><CheckCircle2 className="size-3.5" aria-hidden />বর্তমান</Badge>}
                 </div>
                 {pl.taglineBn && <p className="text-sm text-muted">{pl.taglineBn}</p>}
               </div>
               <div>
-                <span className="text-3xl font-bold">{price(pl) ? taka(price(pl)) : "৳০"}</span>
+                <span className="text-3xl font-semibold tabular-nums">{price(pl) ? taka(price(pl)) : "৳০"}</span>
                 {price(pl) > 0 && <span className="text-sm text-subtle"> / {cycle === "yearly" ? "বছর" : "মাস"}</span>}
                 {cycle === "yearly" && pl.priceMonthly > 0 && <div className="text-xs text-brand-green">মাসে মাত্র {taka(Math.round(pl.priceYearly / 12))}</div>}
               </div>
@@ -212,7 +217,7 @@ function PaymentPanel({ businessId, invoice, catalog }: { businessId: string; in
   if (invoice.status === "pending_verification") {
     const claim = invoice.payments.find((p) => p.status === "pending");
     return (
-      <section id="payment" className="card flex scroll-mt-24 items-start gap-4 border-blue-200 bg-blue-50/40 p-5">
+      <section id="payment" className="card flex scroll-mt-24 items-start gap-4 border-primary/15 bg-primary-light/40 p-5">
         <Hourglass className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
         <div>
           <h2 className="font-semibold">পেমেন্ট যাচাই চলছে</h2>
@@ -234,7 +239,7 @@ function PaymentPanel({ businessId, invoice, catalog }: { businessId: string; in
           <p className="text-sm text-muted">{invoice.planName} · {invoice.cycle === "yearly" ? "বাৎসরিক" : "মাসিক"} · ইনভয়েস <span className="font-num">{invoice.number}</span></p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold">{taka(invoice.total)}</div>
+          <div className="text-2xl font-semibold tabular-nums">{taka(invoice.total)}</div>
           {invoice.credit > 0 && <div className="text-xs text-brand-green">আগের প্ল্যানের {taka(invoice.credit)} বাদ দেওয়া হয়েছে</div>}
         </div>
       </div>
@@ -281,12 +286,20 @@ function PaymentPanel({ businessId, invoice, catalog }: { businessId: string; in
   );
 }
 
-function InvoiceHistory({ invoices, loading }: { invoices: Invoice[]; loading: boolean }) {
+function InvoiceHistory({ businessId }: { businessId: string }) {
+  const [page, setPage] = usePage();
+  const q = useQuery({
+    queryKey: ["business", businessId, "invoices", page],
+    queryFn: () => api.get<Paged<Invoice>>(`/api/businesses/${businessId}/billing/invoices`, { page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
+  });
+  const invoices = q.data?.items ?? [];
+  const loading = q.isLoading;
   return (
     <section className="card overflow-hidden" aria-labelledby="inv-h">
       <h2 id="inv-h" className="flex items-center gap-2 border-b border-line px-5 py-4 font-semibold"><Receipt className="size-4 text-subtle" aria-hidden />ইনভয়েস ও পেমেন্ট</h2>
       {loading ? <div className="p-5"><Skeleton className="h-20" /></div> : invoices.length === 0 ? (
-        <p className="px-5 py-8 text-center text-sm text-subtle">এখনও কোনো ইনভয়েস নেই।</p>
+        <p className="px-5 py-8 text-center text-sm text-subtle">এখনও কোনো ইনভয়েস নেই</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
@@ -315,6 +328,7 @@ function InvoiceHistory({ invoices, loading }: { invoices: Invoice[]; loading: b
           </table>
         </div>
       )}
+      {q.data && <Pagination page={page} total={q.data.total} onChange={setPage} scrollTop={false} label="ইনভয়েসের পাতা" className="border-t border-line px-5 pb-4" />}
     </section>
   );
 }
