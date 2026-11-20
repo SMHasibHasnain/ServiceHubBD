@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Outlet } from "react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlus } from "lucide-react";
 import { api } from "../../api/client";
-import type { Invitation, Leave, Member, Role } from "../../api/types";
+import type { Invitation, Leave, Member, Paged, Role } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
-import { Avatar, Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, Skeleton, useToast } from "../../components/ui";
+import { Avatar, Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PAGE_SIZE, PageHeader, Pagination, Skeleton, useClientPage, usePage, useToast } from "../../components/ui";
 import { SectionTabs } from "../../components/SectionTabs";
 import { bn, dateShort } from "../../lib/format";
 import { useBiz } from "./Dashboard";
@@ -64,6 +64,7 @@ export function TeamMembers() {
   const { myRank, assignable, rankOf } = useTeamRoles();
   const members = useQuery({ queryKey: ["business", biz.id, "members"], queryFn: () => api.get<Member[]>(`/api/businesses/${biz.id}/members`) });
   const refresh = () => qc.invalidateQueries({ queryKey: ["business", biz.id, "members"] });
+  const paged = useClientPage(members.data);
 
   const changeRole = useMutation({
     mutationFn: ({ id, roleKey }: { id: string; roleKey: string }) => api.patch(`/api/businesses/${biz.id}/members/${id}`, { roleKey }),
@@ -78,8 +79,9 @@ export function TeamMembers() {
     <>
       <ErrorBox error={members.error ?? changeRole.error} />
       {members.isLoading ? <LoadingList /> : (
+        <>
         <ul className="card divide-y divide-zinc-100">
-          {members.data?.map((m) => {
+          {paged.items.map((m) => {
             const editable = canManage && m.userId !== user?.id && rankOf(m.roleKey) < myRank;
             return (
               <li key={m.id} className="flex flex-wrap items-center gap-4 px-5 py-4">
@@ -101,6 +103,8 @@ export function TeamMembers() {
             );
           })}
         </ul>
+        <Pagination page={paged.page} total={paged.total} pageSize={paged.pageSize} onChange={paged.setPage} label="সদস্যের পাতা" />
+        </>
       )}
       <Modal open={!!removing} onClose={() => setRemoving(null)} title="আপনি কি নিশ্চিত?"
         footer={<><Button variant="ghost" onClick={() => setRemoving(null)}>বাতিল</Button><Button variant="danger" loading={remove.isPending} onClick={() => removing && remove.mutate(removing.id)}>নিশ্চিত করুন</Button></>}>
@@ -120,12 +124,14 @@ export function TeamInvitations() {
     mutationFn: (id: string) => api.del(`/api/businesses/${biz.id}/invitations/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["business", biz.id, "invitations"] }),
   });
+  const paged = useClientPage(invitations.data);
   return (
     <>
       <ErrorBox error={invitations.error ?? revoke.error} />
       {invitations.isLoading ? <LoadingList rows={2} /> : invitations.data?.length ? (
+        <>
         <ul className="card divide-y divide-zinc-100">
-          {invitations.data.map((i) => (
+          {paged.items.map((i) => (
             <li key={i.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
               <span className="flex-1 font-num">{i.inviteePhone}</span><Badge>{i.roleName}</Badge>
               <span className="text-sm text-subtle">মেয়াদ {dateShort(i.expiresAt)}</span>
@@ -133,6 +139,8 @@ export function TeamInvitations() {
             </li>
           ))}
         </ul>
+        <Pagination page={paged.page} total={paged.total} pageSize={paged.pageSize} onChange={paged.setPage} label="আমন্ত্রণের পাতা" />
+        </>
       ) : <EmptyState title="কোনো অপেক্ষমাণ আমন্ত্রণ নেই" description="নতুন সদস্যকে মোবাইল নম্বর দিয়ে আমন্ত্রণ জানালে তিনি গ্রহণ না করা পর্যন্ত এখানে থাকবে।" />}
     </>
   );
@@ -181,7 +189,12 @@ function LeaveApprovals({ businessId }: { businessId: string }) {
   const toast = useToast();
   const [rejecting, setRejecting] = useState<Leave | null>(null);
   const [reason, setReason] = useState("");
-  const leaves = useQuery({ queryKey: ["business", businessId, "leaves", "all"], queryFn: () => api.get<Leave[]>(`/api/businesses/${businessId}/leaves`) });
+  const [page, setPage] = usePage();
+  const leaves = useQuery({
+    queryKey: ["business", businessId, "leaves", "all", page],
+    queryFn: () => api.get<Paged<Leave>>(`/api/businesses/${businessId}/leaves`, { page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
+  });
   const decide = useMutation({
     mutationFn: ({ leave, approve }: { leave: Leave; approve: boolean }) =>
       api.post(`/api/businesses/${businessId}/leaves/${leave.id}/${approve ? "approve" : "reject"}`, approve ? {} : { reason }),
@@ -192,14 +205,14 @@ function LeaveApprovals({ businessId }: { businessId: string }) {
     },
   });
   if (leaves.isLoading) return <LoadingList rows={2} />;
-  if (!leaves.data?.length) return <EmptyState title="কোনো ছুটির আবেদন নেই" description="টিমের কেউ “আমার কাজ” পাতা থেকে ছুটির আবেদন করলে এখানে আসবে।" />;
-  const pending = leaves.data.filter((l) => l.status === "pending").length;
+  if (!leaves.data?.items.length) return <EmptyState title="কোনো ছুটির আবেদন নেই" description="টিমের কেউ “আমার কাজ” পাতা থেকে ছুটির আবেদন করলে এখানে আসবে।" />;
+  const pending = leaves.data.items.filter((l) => l.status === "pending").length;
   return (
     <section>
       {pending > 0 && <p className="mb-3 text-[15px] text-muted">{bn(pending)}টি আবেদন সিদ্ধান্তের অপেক্ষায়।</p>}
       <ErrorBox error={decide.error} />
       <ul className="card divide-y divide-zinc-100">
-        {leaves.data.map((l) => (
+        {leaves.data.items.map((l) => (
           <li key={l.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-[15px]">
             <span className="font-semibold">{l.memberName}</span>
             <span>{leaveRange(l)}</span>
@@ -214,6 +227,7 @@ function LeaveApprovals({ businessId }: { businessId: string }) {
           </li>
         ))}
       </ul>
+      <Pagination page={page} total={leaves.data.total} onChange={setPage} label="ছুটির আবেদনের পাতা" />
       <Modal open={!!rejecting} onClose={() => setRejecting(null)} title="ছুটি নামঞ্জুর"
         footer={<><Button variant="ghost" onClick={() => setRejecting(null)}>ফিরে যান</Button><Button variant="danger" disabled={reason.trim().length < 3} loading={decide.isPending} onClick={() => rejecting && decide.mutate({ leave: rejecting, approve: false })}>নিশ্চিত করুন</Button></>}>
         <label className="label">কারণ <span className="text-sm font-normal text-subtle">({rejecting?.memberName} দেখবেন)</span>
