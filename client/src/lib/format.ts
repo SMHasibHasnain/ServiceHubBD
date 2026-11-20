@@ -119,6 +119,7 @@ export const REPORT_REASONS: Record<string, string> = {
   fraud: "প্রতারণা",
   abusive_behaviour: "অশোভন আচরণ",
   misleading_information: "বিভ্রান্তিকর তথ্য",
+  inappropriate_content: "অনুপযুক্ত ছবি বা লেখা",
   other: "অন্যান্য",
 };
 
@@ -133,6 +134,7 @@ export const MODERATION_ACTIONS: Record<string, string> = {
   resolve_report: "রিপোর্ট নিষ্পত্তি",
   dismiss_report: "রিপোর্ট খারিজ",
   escalate_report: "রিপোর্ট উচ্চতর পর্যায়ে",
+  remove_content: "নোটিশ বা ছবি অপসারণ",
   hide_review: "রিভিউ লুকানো",
   remove_review: "রিভিউ অপসারণ",
 };
