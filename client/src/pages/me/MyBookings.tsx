@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, CalendarDays, Car, Clock, Heart, ImagePlus, Star, Wrench, X } from "lucide-react";
 import { api } from "../../api/client";
 import type { Booking, CustomerStats, DayAvailability, Paged } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
-import { Avatar, Badge, Button, EmptyState, ErrorBox, LinkButton, LoadingList, Modal, PageHeader, Segmented, useToast } from "../../components/ui";
+import { Avatar, Badge, Button, EmptyState, ErrorBox, LinkButton, LoadingList, Modal, PAGE_SIZE, PageHeader, Pagination, Segmented, usePage, useToast } from "../../components/ui";
 import { BOOKING_STATUS, bn, clock, dateLong, priceLabel, relative, taka, timeOnly, todayBd } from "../../lib/format";
 import { FilePicker, useUpload } from "../../components/ImageUpload";
 
@@ -27,9 +27,11 @@ export default function MyBookings() {
   const [moving, setMoving] = useState<Booking | null>(null);
   const qc = useQueryClient();
   const toast = useToast();
+  const [page, setPage] = usePage(scope);
   const list = useQuery({
-    queryKey: ["me", "bookings", scope],
-    queryFn: () => api.get<Paged<Booking>>("/api/me/bookings", { scope, pageSize: 50 }),
+    queryKey: ["me", "bookings", scope, page],
+    queryFn: () => api.get<Paged<Booking>>("/api/me/bookings", { scope, page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
     // Upcoming bookings refresh every 30 s so "on the way" / "started" shows up without reloading.
     refetchInterval: scope === "upcoming" ? 30_000 : false,
   });
@@ -131,6 +133,7 @@ export default function MyBookings() {
         <EmptyState title={scope === "upcoming" ? "এখনও কোনো আসন্ন বুকিং নেই।" : "এখনও কোনো বুকিং নেই।"} description="বিশ্বস্ত স্থানীয় সেবা খুঁজে প্রথম বুকিং করুন।"
           action={<LinkButton to="/search">সেবা খুঁজুন</LinkButton>} />
       )}
+      {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} label="বুকিংয়ের পাতা" />}
       {cancelling && <CancelModal booking={cancelling} onClose={() => setCancelling(null)} />}
       {reviewing && <ReviewModal booking={reviewing} onClose={() => setReviewing(null)} />}
       {moving && <RescheduleModal booking={moving} onClose={() => setMoving(null)} />}
