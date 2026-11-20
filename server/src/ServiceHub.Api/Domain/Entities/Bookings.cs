@@ -68,6 +68,8 @@ public class Booking : ITimestamped
     public string? CustomerNote { get; set; }
     public string? BusinessNote { get; set; }
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.NotApplicable;
+    public WorkProgress? Progress { get; set; }
+    public DateTime? ProgressAt { get; set; }
     public DateTime? ConfirmedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public DateTime? CancelledAt { get; set; }
@@ -78,6 +80,25 @@ public class Booking : ITimestamped
 
     public List<BookingFieldResponse> FieldResponses { get; set; } = [];
     public List<BookingStatusHistory> History { get; set; } = [];
+    public List<BookingRescheduleRequest> RescheduleRequests { get; set; } = [];
+}
+
+/// <summary>A customer's request to move a booking to another slot; the business accepts or rejects it.</summary>
+public class BookingRescheduleRequest
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid BookingId { get; set; }
+    public Guid RequestedBy { get; set; }
+    public DateTime ProposedStartAt { get; set; }
+    public DateTime ProposedEndAt { get; set; }
+    /// <summary>Where the booking was when the request was made (for the history and notifications).</summary>
+    public DateTime PreviousStartAt { get; set; }
+    public string? Reason { get; set; }
+    public RescheduleStatus Status { get; set; } = RescheduleStatus.Pending;
+    public string? ResponseNote { get; set; }
+    public Guid? RespondedBy { get; set; }
+    public DateTime? RespondedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 public class BookingFieldResponse
