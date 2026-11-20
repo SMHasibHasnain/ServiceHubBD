@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flag, Star } from "lucide-react";
 import { api } from "../../api/client";
 import type { ManagedReview, Paged } from "../../api/types";
-import { Avatar, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, Segmented, Stars, useToast } from "../../components/ui";
+import { Avatar, Button, EmptyState, ErrorBox, LoadingList, Modal, PAGE_SIZE, PageHeader, Pagination, Segmented, Stars, usePage, useToast } from "../../components/ui";
 import { REPORT_REASONS, bn, dateShort } from "../../lib/format";
 import { useBiz } from "./Dashboard";
 import { ReviewPhotos } from "../../components/shared";
@@ -17,10 +17,12 @@ export default function Reviews() {
   const [reporting, setReporting] = useState<ManagedReview | null>(null);
   const canReply = !!biz?.myPermissions.includes("reviews.reply");
 
+  const [page, setPage] = usePage(filter);
   const list = useQuery({
-    queryKey: ["business", biz?.id, "reviews", filter],
-    queryFn: () => api.get<Paged<ManagedReview>>(`/api/businesses/${biz!.id}/reviews`, { unrepliedOnly: filter === "unreplied", pageSize: 50 }),
+    queryKey: ["business", biz?.id, "reviews", filter, page],
+    queryFn: () => api.get<Paged<ManagedReview>>(`/api/businesses/${biz!.id}/reviews`, { unrepliedOnly: filter === "unreplied", page, pageSize: PAGE_SIZE }),
     enabled: !!biz,
+    placeholderData: keepPreviousData,
   });
   const reply = useMutation({
     mutationFn: ({ id, body }: { id: string; body: string }) => api.put(`/api/businesses/${biz!.id}/reviews/${id}/reply`, { body }),
@@ -57,7 +59,8 @@ export default function Reviews() {
             </li>
           ))}
         </ul>
-      ) : <EmptyState icon={<Star className="size-8" aria-hidden />} title="এখনও কোনো রিভিউ নেই।" />}
+      ) : <EmptyState icon={<Star className="size-8" aria-hidden />} title="এখনও কোনো রিভিউ নেই" />}
+      {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} label="রিভিউর পাতা" />}
       {reporting && biz && <ReportReview businessId={biz.id} review={reporting} onClose={() => setReporting(null)} />}
     </>
   );
