@@ -43,6 +43,13 @@ public enum BookingFieldType { ShortText, LongText, Number, Phone, Address, Sele
 
 public enum BookingStatus { Pending, Confirmed, Rejected, Rescheduled, Completed, Cancelled, NoShow }
 
+/// <summary>Field progress of a confirmed booking, set by the assigned staff. "Done" is the Completed status.</summary>
+public enum WorkProgress { OnTheWay, Started }
+
+public enum RescheduleStatus { Pending, Accepted, Rejected, Cancelled }
+
+public enum LeaveStatus { Pending, Approved, Rejected, Cancelled }
+
 public enum BookingSource { Web, MobileApp, SharedLink, Promotion, Manual }
 
 public enum ActorType { Customer, Business, Moderator, Admin, System }
@@ -53,7 +60,7 @@ public enum ReviewStatus { Published, Hidden, Removed }
 
 public enum ReportTarget { Business, Review, User }
 
-public enum ReportReason { FakeBusiness, Spam, Fraud, AbusiveBehaviour, MisleadingInformation, Other }
+public enum ReportReason { FakeBusiness, Spam, Fraud, AbusiveBehaviour, MisleadingInformation, InappropriateContent, Other }
 
 public enum ReportStatus { Open, UnderReview, Resolved, Dismissed, Escalated }
 
@@ -62,7 +69,7 @@ public enum ModerationActionType
     StartReview, ApproveBusiness, RejectBusiness, RequestInformation, SetPriority,
     AcceptDocument, RejectDocument, ApproveReview, HideReview, RemoveReview, RestoreReview,
     SuspendBusiness, ReinstateBusiness, ResolveReport, DismissReport, EscalateReport,
-    RequestInspection
+    RequestInspection, RemoveContent
 }
 
 // ---------- Subscriptions ----------
