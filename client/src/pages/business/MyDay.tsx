@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Car, CheckCircle2, Clock, MapPin, Phone, Plane, Plus, Wrench, X } from "lucide-react";
 import { api } from "../../api/client";
-import type { Booking, Leave, MyDay as MyDayData, WorkProgress } from "../../api/types";
-import { Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, Segmented, Skeleton, useToast } from "../../components/ui";
+import type { Booking, Leave, MyDay as MyDayData, Paged, WorkProgress } from "../../api/types";
+import { Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, Pagination, Segmented, Skeleton, usePage, useToast } from "../../components/ui";
 import { BOOKING_STATUS, bn, timeOnly, todayBd } from "../../lib/format";
 import { useBiz } from "./Dashboard";
 
@@ -120,7 +120,12 @@ function LeaveSection({ businessId }: { businessId: string }) {
   const [asking, setAsking] = useState(false);
   const qc = useQueryClient();
   const toast = useToast();
-  const leaves = useQuery({ queryKey: ["business", businessId, "leaves", "mine"], queryFn: () => api.get<Leave[]>(`/api/businesses/${businessId}/leaves`, { mine: true }) });
+  const [page, setPage] = usePage();
+  const leaves = useQuery({
+    queryKey: ["business", businessId, "leaves", "mine", page],
+    queryFn: () => api.get<Paged<Leave>>(`/api/businesses/${businessId}/leaves`, { mine: true, page, pageSize: 10 }),
+    placeholderData: keepPreviousData,
+  });
   const cancel = useMutation({
     mutationFn: (id: string) => api.del(`/api/businesses/${businessId}/leaves/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["business", businessId] }); toast("ছুটির আবেদন বাতিল হয়েছে।"); },
@@ -133,9 +138,10 @@ function LeaveSection({ businessId }: { businessId: string }) {
         <Button size="sm" onClick={() => setAsking(true)}><Plus className="size-4" aria-hidden />ছুটির আবেদন</Button>
       </div>
       <ErrorBox error={leaves.error ?? cancel.error} />
-      {leaves.data?.length ? (
+      {leaves.data?.items.length ? (
+        <>
         <ul className="flex flex-col divide-y divide-zinc-100 rounded-md border border-line">
-          {leaves.data.map((l) => (
+          {leaves.data.items.map((l) => (
             <li key={l.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-[15px]">
               <span className="font-medium">{leaveRange(l)}</span>
               {l.reason && <span className="text-muted">{l.reason}</span>}
@@ -147,6 +153,8 @@ function LeaveSection({ businessId }: { businessId: string }) {
             </li>
           ))}
         </ul>
+        <Pagination page={page} total={leaves.data.total} pageSize={10} onChange={setPage} scrollTop={false} label="ছুটির পাতা" className="mt-0" />
+        </>
       ) : !leaves.isLoading && <p className="text-muted">কোনো ছুটির আবেদন নেই। মঞ্জুর হলে ওই দিনগুলোতে আপনাকে কাজ দেওয়া হবে না।</p>}
       {asking && <LeaveModal businessId={businessId} onClose={() => setAsking(false)} />}
     </section>
