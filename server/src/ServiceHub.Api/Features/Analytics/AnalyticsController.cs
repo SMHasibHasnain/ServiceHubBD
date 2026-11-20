@@ -108,7 +108,7 @@ public class AnalyticsController(AppDbContext db, ICurrentUser me, AccessService
     [HttpGet("api/businesses/{businessId:guid}/analytics")]
     public async Task<ActionResult<BusinessAnalyticsDto>> Business(Guid businessId, [FromQuery] int? days = null)
     {
-        await access.RequireBusinessAsync(businessId, P.AnalyticsView);
+        await access.RequireBusinessOrStaffAsync(businessId, P.AnalyticsView);
         var p = Period.Last(await plans.AnalyticsDaysAsync(businessId, days is 7 or 30 or 90 ? days : days is null ? null : 30));
 
         var rows = await db.Bookings.AsNoTracking()
@@ -405,7 +405,7 @@ public class AnalyticsController(AppDbContext db, ICurrentUser me, AccessService
     [HttpGet("api/admin/analytics")]
     public async Task<ActionResult<AdminAnalyticsDto>> Admin([FromQuery] int days = 30)
     {
-        await access.RequireGlobalAsync(P.UsersView);
+        await access.RequireGlobalAsync(P.PlatformAnalyticsView);
         var p = Period.Last(days);
 
         var users = await db.Users.AsNoTracking().Select(u => new { u.CreatedAt, u.LastLoginAt }).ToListAsync();
