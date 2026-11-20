@@ -38,17 +38,21 @@ public record HistoryDto(BookingStatus? From, BookingStatus To, ActorType Actor,
 
 public record AssigneeDto(Guid MemberId, Guid UserId, string Name);
 
+public record RescheduleDto(Guid Id, DateTime ProposedStartAt, DateTime ProposedEndAt, DateTime PreviousStartAt, string? Reason,
+    RescheduleStatus Status, string? ResponseNote, DateTime CreatedAt, DateTime? RespondedAt);
+
 public record BookingDto(
     Guid Id, string BookingNumber, Guid BusinessId, string BusinessName, string BusinessSlug, Guid ServiceId,
     string ServiceName, DateTime StartAt, DateTime EndAt, BookingStatus Status, BookingSource Source, PriceType PriceType,
     decimal? QuotedPrice, decimal? FinalPrice, short DurationMinutes, string CustomerName, string CustomerPhone,
     string? ServiceAddress, string? CustomerNote, string? BusinessNote, Guid BusinessCustomerId, AssigneeDto? AssignedTo,
-    string? CancellationReason, bool HasReview, List<AnswerDto> Answers, List<HistoryDto> History);
+    string? CancellationReason, bool HasReview, List<AnswerDto> Answers, List<HistoryDto> History,
+    WorkProgress? Progress, DateTime? ProgressAt, RescheduleDto? Reschedule);
 
 internal static class BookingQueries
 {
     public static IQueryable<Booking> WithDetails(this IQueryable<Booking> q) => q
-        .Include(b => b.Business).Include(b => b.FieldResponses).Include(b => b.History)
+        .Include(b => b.Business).Include(b => b.FieldResponses).Include(b => b.History).Include(b => b.RescheduleRequests)
         .Include(b => b.AssignedMember!).ThenInclude(m => m.User);
 
     public static BookingDto ToDto(Booking b, bool forBusiness, bool hasReview) => new(
@@ -58,7 +62,11 @@ internal static class BookingQueries
         b.AssignedMember is null ? null : new AssigneeDto(b.AssignedMember.Id, b.AssignedMember.UserId, b.AssignedMember.User.FullName),
         b.CancellationReason, hasReview,
         b.FieldResponses.Select(f => new AnswerDto(f.Label, f.ValueText, f.FileUrl)).ToList(),
-        b.History.OrderBy(h => h.CreatedAt).Select(h => new HistoryDto(h.FromStatus, h.ToStatus, h.Actor, h.Reason, h.CreatedAt)).ToList());
+        b.History.OrderBy(h => h.CreatedAt).Select(h => new HistoryDto(h.FromStatus, h.ToStatus, h.Actor, h.Reason, h.CreatedAt)).ToList(),
+        b.Progress, b.ProgressAt,
+        // The latest request: pending, or the last decision so the customer sees why it was turned down.
+        b.RescheduleRequests.OrderByDescending(r => r.CreatedAt).Select(r => new RescheduleDto(r.Id, r.ProposedStartAt, r.ProposedEndAt,
+            r.PreviousStartAt, r.Reason, r.Status, r.ResponseNote, r.CreatedAt, r.RespondedAt)).FirstOrDefault());
 }
 
 /// <summary>Customer side: book, list my bookings, cancel.</summary>
@@ -228,6 +236,8 @@ public class BusinessBookingsController(AppDbContext db, AccessService access, B
             var member = await db.BusinessMembers.Include(m => m.User)
                 .FirstOrDefaultAsync(m => m.Id == req.MemberId && m.BusinessId == businessId && m.Status == MemberStatus.Active)
                 ?? throw new BadRequestException("টিম সদস্য পাওয়া যায়নি।", "invalid_member");
+            if (await Leaves.IsOnLeaveAsync(db, member.Id, DateOnly.FromDateTime(BdTime.ToLocal(booking.StartAt))))
+                throw new ConflictException($"{member.User.FullName} ওই দিন ছুটিতে আছেন। অন্য কাউকে বরাদ্দ দিন।", "member_on_leave");
             booking.AssignedMember = member;
             await db.Notifications.AddAsync(new Notification
             {
