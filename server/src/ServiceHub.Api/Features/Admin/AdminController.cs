@@ -99,15 +99,17 @@ public class AdminController(AppDbContext db, ICurrentUser me, AccessService acc
     }
 
     [HttpGet("role-assignments")]
-    public async Task<ActionResult<List<AssignmentDto>>> Assignments([FromQuery] Guid? userId, [FromQuery] string? roleKey,
-        [FromQuery] bool includeRevoked = false)
+    public async Task<ActionResult<PagedResult<AssignmentDto>>> Assignments([FromQuery] Guid? userId, [FromQuery] string? roleKey,
+        [FromQuery] PageQuery paging, [FromQuery] bool includeRevoked = false)
     {
         await access.RequireGlobalAsync(P.UsersView);
         var q = db.PlatformRoleAssignments.AsQueryable();
         if (userId is not null) q = q.Where(a => a.UserId == userId);
         if (roleKey is not null) q = q.Where(a => a.Role.Key == roleKey);
         if (!includeRevoked) q = q.Where(a => a.RevokedAt == null);
-        return await ProjectAssignments(q.OrderByDescending(a => a.CreatedAt)).ToListAsync();
+        var total = await q.CountAsync();
+        var items = await ProjectAssignments(q.OrderByDescending(a => a.CreatedAt).Skip(paging.Skip).Take(paging.SafeSize)).ToListAsync();
+        return new PagedResult<AssignmentDto>(items, paging.SafePage, paging.SafeSize, total);
     }
 
     /// <summary>
