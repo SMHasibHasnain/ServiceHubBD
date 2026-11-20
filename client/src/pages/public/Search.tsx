@@ -110,7 +110,7 @@ export default function Search() {
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-80" />)}</div>
           ) : results.data?.items.length ? (
             <>
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{results.data.items.map((b) => <BusinessCardView key={b.id} b={b} />)}</div>
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{results.data.items.map((b, i) => <BusinessCardView key={b.id} b={b} index={i} />)}</div>
               {totalPages > 1 && (
                 <nav aria-label="পৃষ্ঠা" className="mt-8 flex items-center justify-center gap-3">
                   <Button variant="outline" disabled={query.page <= 1} onClick={() => update({ page: String(query.page - 1) })}>← আগের</Button>

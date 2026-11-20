@@ -14,7 +14,7 @@ const VARIANT: Record<Variant, string> = {
   secondary: "bg-secondary-light text-brand-green hover:bg-lime-100",
   outline: "border border-zinc-300 bg-surface text-ink shadow-soft hover:border-zinc-400 hover:bg-zinc-50",
   ghost: "text-zinc-600 hover:bg-zinc-100 hover:text-ink",
-  danger: "border border-zinc-300 bg-surface text-red-700 shadow-soft hover:border-red-300 hover:bg-red-50",
+  danger: "border border-zinc-300 bg-surface text-red-700 shadow-soft hover:border-red-300 hover:bg-red-50 disabled:opacity-40 disabled:hover:border-zinc-300 disabled:hover:bg-surface",
 };
 const SIZE: Record<Size, string> = {
   sm: "min-h-10 px-3.5 text-sm",
@@ -148,8 +148,8 @@ export function Avatar({ name, className = "", tone = "blue" }: { name: string; 
   return <span aria-hidden className={`flex shrink-0 items-center justify-center rounded-md text-[0.8em] font-medium ring-1 ring-inset ${TONE[tone]} ${className}`}>{initials}</span>;
 }
 
-export function Stars({ value }: { value: number }) {
-  return <span className="font-medium text-ink" aria-label={`রেটিং ${value}`}><span className="text-amber-500">★</span> {value.toLocaleString("bn-BD", { maximumFractionDigits: 1 })}</span>;
+export function Stars({ value, className = "text-ink" }: { value: number; className?: string }) {
+  return <span className={`font-medium ${className}`} aria-label={`রেটিং ${value}`}><span className="text-amber-500">★</span> {value.toLocaleString("bn-BD", { maximumFractionDigits: 1 })}</span>;
 }
 
 // ---------- Modal ----------

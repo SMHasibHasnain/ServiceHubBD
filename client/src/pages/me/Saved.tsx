@@ -16,7 +16,7 @@ export default function Saved() {
       <ErrorBox error={list.error} />
       {list.isLoading ? <LoadingList /> : list.data?.length ? (
         <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {list.data.map((b) => <li key={b.id}><BusinessCardView b={b} /></li>)}
+          {list.data.map((b, i) => <li key={b.id} className="flex"><BusinessCardView b={b} index={i} /></li>)}
         </ul>
       ) : (
         <EmptyState icon={<Heart aria-hidden />} title="এখনও কিছু সংরক্ষণ করেননি"

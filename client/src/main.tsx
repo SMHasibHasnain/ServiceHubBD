@@ -50,6 +50,8 @@ const BusinessAnalytics = lazy(() => import("./pages/business/Analytics"));
 const Billing = lazy(() => import("./pages/business/Billing"));
 const Pricing = lazy(() => import("./pages/public/Pricing"));
 const AdminBilling = lazy(() => import("./pages/platform/AdminBilling"));
+const AdminHomepage = lazy(() => import("./pages/platform/AdminHomepage"));
+const AdminCategories = lazy(() => import("./pages/platform/AdminCategories"));
 const ModerationAnalytics = lazy(() => import("./pages/platform/PlatformAnalytics").then((m) => ({ default: m.ModerationAnalyticsPage })));
 const InspectionAnalytics = lazy(() => import("./pages/platform/PlatformAnalytics").then((m) => ({ default: m.InspectionAnalyticsPage })));
 const AdminAnalytics = lazy(() => import("./pages/platform/PlatformAnalytics").then((m) => ({ default: m.AdminAnalyticsPage })));
@@ -186,6 +188,8 @@ const router = createBrowserRouter([
           { path: "roles", element: <AdminRoles /> },
           { path: "audit", element: <AdminAudit /> },
           { path: "billing", element: <AdminBilling /> },
+          { path: "homepage", element: <AdminHomepage /> },
+          { path: "categories", element: <AdminCategories /> },
         ],
       },
     ],

@@ -151,7 +151,6 @@ export function AdminAnalyticsPage() {
       {!a ? <LoadingList rows={3} /> : (
         <Frame fetching={q.isFetching}>
           <div className="bg-brand relative overflow-hidden rounded-xl p-5 text-white shadow-lift sm:p-6">
-            <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgb(255_255_255/0.35)_1px,transparent_1px)] [background-size:20px_20px]" aria-hidden />
             <div className="relative flex flex-wrap items-end justify-between gap-6">
               <div>
                 <p className="text-sm text-blue-100">গত {bn(a.days)} দিনে মোট লেনদেন (সম্পন্ন বুকিং)</p>

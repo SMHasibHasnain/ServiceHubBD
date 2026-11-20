@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
-import { BadgeCheck, Check, Eye, EyeOff, Star } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { ApiError } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { Logo } from "../../components/Layouts";
-import { LogoFull, Sticker } from "../../components/brand";
+import { Band, LogoFull, PetalPattern, Rosette } from "../../components/brand";
 import { Button, ErrorBox, Field } from "../../components/ui";
 
 function PasswordInput({ id, value, onChange, autoComplete, placeholder }: {
@@ -72,33 +72,29 @@ export default function AuthPage({ mode }: { mode: "login" | "register" }) {
 
   return (
     <div className="flex min-h-dvh flex-wrap">
-      <aside className="bg-brand relative hidden flex-[1_1_440px] flex-col justify-between gap-10 overflow-hidden p-12 text-white lg:flex">
-        <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgb(255_255_255/0.35)_1px,transparent_1px)] [background-size:22px_22px]" aria-hidden />
-        <div className="absolute -right-24 -bottom-24 size-96 rounded-full bg-brand-lime/25 blur-2xl" aria-hidden />
-        <div className="relative self-start rounded-lg bg-white px-4 py-2.5 shadow-lift"><Logo /></div>
-        <div className="relative flex max-w-lg flex-col gap-5">
-          <div className="relative mb-4 self-start">
-            <div className="rounded-xl bg-white p-5 shadow-pop"><LogoFull className="h-40 w-auto" /></div>
-            <Sticker tilt={-8} className="float-slow absolute -top-4 -right-16 text-brand-green"><BadgeCheck className="size-4" aria-hidden /> যাচাইকৃত</Sticker>
-            <Sticker tilt={6} className="float-slower absolute -right-24 bottom-6 text-amber-600"><Star className="size-4 fill-amber-400 text-amber-400" aria-hidden /> ৪.৯ রেটিং</Sticker>
-          </div>
-          <h1 className="text-4xl leading-tight font-bold">একটি অ্যাকাউন্ট, অসংখ্য সম্ভাবনা</h1>
-          <p className="text-lg text-blue-100">গ্রাহক হিসেবে যোগ দিন। পরে চাইলে একই অ্যাকাউন্ট থেকে এক বা একাধিক ব্যবসা পেজ তৈরি করুন, অথবা অন্য ব্যবসায় টিম সদস্য হিসেবে কাজ করুন।</p>
-          <ul className="flex flex-col gap-3 text-blue-50">
-            {["যাচাইকৃত ব্যবসা থেকে সেবা নিন", "লগআউট ছাড়াই ওয়ার্কস্পেস বদলান", "দুই মিনিটে রেজিস্ট্রেশন"].map((t) => (
-              <li key={t} className="flex items-center gap-2.5"><span className="flex size-6 items-center justify-center rounded-full bg-brand-lime/25"><Check className="size-4 text-brand-lime" aria-hidden /></span>{t}</li>
+      <aside className="relative hidden flex-[1_1_440px] flex-col justify-between gap-10 overflow-hidden bg-primary p-12 text-cream lg:flex">
+        <PetalPattern />
+        <div className="relative self-start rounded-full bg-cream px-5 py-2.5"><Logo /></div>
+        <div className="relative flex max-w-lg flex-col gap-6">
+          <h1 className="text-5xl leading-[1.1] font-extrabold">
+            একটি অ্যাকাউন্ট,<br /><span className="painted text-[1.15em] text-marigold">অনেক দরজা।</span>
+          </h1>
+          <p className="text-lg text-[#cfd8ea]">গ্রাহক হিসেবে যোগ দিন। পরে চাইলে একই অ্যাকাউন্ট থেকে এক বা একাধিক ব্যবসা পেজ খুলুন, অথবা অন্য ব্যবসায় টিম সদস্য হিসেবে কাজ করুন।</p>
+          <ul className="flex flex-col gap-3">
+            {["যাচাইকৃত ব্যবসা থেকে সেবা নিন", "লগআউট ছাড়াই ওয়ার্কস্পেস বদলান", "দুই মিনিটে রেজিস্ট্রেশন"].map((t, i) => (
+              <li key={t} className="flex items-center gap-3"><Rosette color={["#e9b24a", "#d4607f", "#2f7f55"][i]} className="size-6" />{t}</li>
             ))}
           </ul>
         </div>
-        <span className="relative font-num text-xs tracking-[0.25em] text-blue-200">DISCOVER · BOOK · CONNECT · GROW</span>
+        <Band className="relative -mx-12 -mb-12 w-[calc(100%+6rem)]" />
       </aside>
 
-      <main className="bg-hero flex flex-[999_1_480px] items-center justify-center px-4 py-10">
+      <main className="flex bg-cream flex-[999_1_480px] items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div className="mb-8 flex justify-center lg:hidden"><LogoFull className="h-24 w-auto" /></div>
-          <form onSubmit={submit} className="card flex flex-col gap-5 p-6 shadow-lift sm:p-8" noValidate>
+          <form onSubmit={submit} className="flex flex-col gap-5 rounded-[18px] border-[2.5px] border-ink bg-paper p-6 shadow-[6px_6px_0_var(--color-primary)] sm:p-8" noValidate>
             <div>
-              <h2 className="text-2xl font-bold text-brand-navy">{mode === "login" ? "আবার স্বাগতম" : "অ্যাকাউন্ট তৈরি করুন"}</h2>
+              <h2 className="text-[28px] font-extrabold text-primary">{mode === "login" ? "আবার স্বাগতম" : "অ্যাকাউন্ট তৈরি করুন"}</h2>
               <p className="mt-1 text-muted">{mode === "login" ? "আপনার অ্যাকাউন্টে লগইন করুন" : "শুধু প্রয়োজনীয় তথ্য — ব্যবসা পেজ পরে তৈরি করতে পারবেন"}</p>
             </div>
             <ErrorBox error={error instanceof ApiError && error.code === "validation" ? null : error} />

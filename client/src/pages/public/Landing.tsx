@@ -1,216 +1,565 @@
-import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowRight, BadgeCheck, CalendarCheck, LineChart, MapPin, MessageSquareHeart, Search, ShieldCheck, Star, Users, UsersRound,
-} from "lucide-react";
+import { BadgeCheck, Pause, Play, Search } from "lucide-react";
 import { api } from "../../api/client";
-import type { BusinessCard, Paged } from "../../api/types";
-import { CategoryTile, HeroArt, Sticker } from "../../components/brand";
-import { BusinessCardView, useCategories } from "../../components/shared";
-import { LinkButton, Skeleton } from "../../components/ui";
+import type { BusinessCard, Category, Paged, Zone } from "../../api/types";
+import { Awning, Band, CategoryTile, CoverArt, Fringe, PetalPattern, Rosette, RosetteDivider, initialOf, paintFor } from "../../components/brand";
+import { BusinessCardView, useCategories, useZones } from "../../components/shared";
+import { Skeleton, Stars } from "../../components/ui";
+import { bn, taka } from "../../lib/format";
+import { group, list, mergeHome, safeHref, str, useHomeContent, type Data, type HomeContent, type Section } from "../../lib/homeContent";
 
-const CUSTOMER_STEPS = [
-  { icon: Search, t: "অনুসন্ধান করুন", d: "সেবা, ক্যাটাগরি বা এলাকা দিয়ে খুঁজুন" },
-  { icon: BadgeCheck, t: "তুলনা করুন", d: "যাচাইকৃত ব্যাজ, রিভিউ ও মূল্য দেখে বেছে নিন" },
-  { icon: CalendarCheck, t: "বুক করুন", d: "তারিখ ও সময় বেছে দুই মিনিটে বুকিং" },
-  { icon: Star, t: "রিভিউ দিন", d: "সেবা শেষে অভিজ্ঞতা শেয়ার করুন" },
-];
-const BUSINESS_STEPS = [
-  { icon: UsersRound, t: "পেজ তৈরি করুন", d: "একই অ্যাকাউন্ট থেকে এক বা একাধিক ব্যবসা পেজ" },
-  { icon: ShieldCheck, t: "যাচাইকরণ", d: "ডকুমেন্ট জমা দিন — প্রয়োজনে মাঠ পরিদর্শন" },
-  { icon: CalendarCheck, t: "পরিচালনা করুন", d: "অ্যাপয়েন্টমেন্ট, গ্রাহক, সেবা ও টিম" },
-  { icon: LineChart, t: "প্রবৃদ্ধি", d: "রিভিউ ও বিশ্লেষণ দিয়ে ব্যবসা বাড়ান" },
-];
-const FEATURES: [typeof Star, string, string][] = [
-  [CalendarCheck, "অ্যাপয়েন্টমেন্ট", "স্লট, নিশ্চিতকরণ ও টেকনিশিয়ান"],
-  [Users, "গ্রাহক CRM", "ইতিহাস, নোট ও ট্যাগ"],
-  [MessageSquareHeart, "রিভিউ ও উত্তর", "বিশ্বাস গড়ে তুলুন"],
-  [BadgeCheck, "যাচাইকৃত ব্যাজ", "মডারেটর ও পরিদর্শক যাচাই"],
-  [MapPin, "এলাকাভিত্তিক খোঁজ", "বিভাগ থেকে ইউনিয়ন পর্যন্ত"],
-  [UsersRound, "টিম ও ভূমিকা", "ম্যানেজার, স্টাফ, মডারেটর"],
-];
+/** Built-in defaults, used if the saved content can't be loaded. */
+const FALLBACK = mergeHome(undefined);
 
 export default function Landing() {
-  const navigate = useNavigate();
-  const [q, setQ] = useState("");
+  const { hash } = useLocation();
+  const home = useHomeContent();
+  // "/#business" from the topbar: scroll once the section exists.
+  useEffect(() => {
+    if (hash && home.data) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: "smooth" });
+  }, [hash, home.data]);
+
+  if (home.data) return <HomeView content={home.data} />;
+  // While the saved copy loads, show the hero's colour instead of flashing the default text.
+  return home.isError ? <HomeView content={FALLBACK} /> : <div className="min-h-[70vh] bg-primary" aria-busy="true" />;
+}
+
+type Ctx = {
+  categories: Category[]; categoriesLoading: boolean; divisions: Zone[];
+  featured: BusinessCard[]; featuredLoading: boolean; showcase: BusinessCard[];
+};
+
+/** The homepage for a content document. Also the live preview in the admin editor. */
+export function HomeView({ content }: { content: HomeContent }) {
   const categories = useCategories();
+  const divisions = useZones(null);
   const featured = useQuery({
     queryKey: ["public", "featured"],
     queryFn: () => api.get<Paged<BusinessCard>>("/api/public/businesses", { sort: "highest_rated", pageSize: 6 }),
   });
+  const items = featured.data?.items ?? [];
+  const verified = items.filter((b) => b.isVerified);
+  const visible = content.sections.filter((s) => s.visible);
+  const ctx: Ctx = {
+    categories: categories.data ?? [], categoriesLoading: categories.isLoading,
+    divisions: divisions.data ?? [], featured: items, featuredLoading: featured.isLoading,
+    showcase: verified.length ? verified : items,
+  };
 
+  return (
+    <div className="bg-cream">
+      <Band />
+      {visible.map((s) => <SectionView key={s.id} section={s} ctx={ctx} />)}
+      {/* The business section ends on its own fringe; otherwise close with the band before the footer. */}
+      {visible.at(-1)?.type !== "business" && <Band />}
+    </div>
+  );
+}
+
+function SectionView({ section: s, ctx }: { section: Section; ctx: Ctx }) {
+  const d = s.data;
+  switch (s.type) {
+    case "hero": return <Hero d={d} categories={ctx.categories} />;
+    case "verified": return ctx.showcase.length ? <ShopShowcase d={d} businesses={ctx.showcase} /> : null;
+    case "categories": return <Categories d={d} categories={ctx.categories} loading={ctx.categoriesLoading} />;
+    case "steps": return <Steps d={d} />;
+    case "featured": return <Featured d={d} items={ctx.featured} loading={ctx.featuredLoading} />;
+    case "seasonal": return <Seasonal d={d} />;
+    case "testimonials": return list(d, "items").length ? <Testimonials d={d} /> : null;
+    case "areas": return ctx.divisions.length ? <Areas d={d} divisions={ctx.divisions} /> : null;
+    case "faq": return list(d, "items").length ? <Faq d={d} /> : null;
+    case "business": return <Business d={d} />;
+    case "text": return <TextSection d={d} />;
+    case "cards": return <CardsSection d={d} />;
+    case "banner": return <BannerSection d={d} />;
+  }
+}
+
+// ---------- Shared bits ----------
+
+/** Text the admin may have cleared: renders nothing when blank. */
+function Opt({ v, children }: { v: string; children: (v: string) => ReactNode }) {
+  return v.trim() ? <>{children(v)}</> : null;
+}
+
+function SectionTitle({ eyebrow, title, light = false }: { eyebrow?: string; title: string; light?: boolean }) {
+  return (
+    <div className="mb-12 flex flex-col items-center gap-2.5 text-center">
+      {eyebrow?.trim() && <span className={`font-painted text-[26px] ${light ? "text-marigold" : "text-paint-red"}`}>{eyebrow}</span>}
+      {title.trim() && <h2 className={`text-4xl font-extrabold sm:text-[52px] ${light ? "text-cream" : "text-primary"}`}>{title}</h2>}
+      <RosetteDivider color={light ? "#e9b24a" : "#c4373f"} />
+    </div>
+  );
+}
+
+/** Admin-entered link: same-site paths use the router, https opens a new tab, anything else isn't rendered. */
+function SmartLink({ to, className, children }: { to: string; className: string; children: ReactNode }) {
+  const h = safeHref(to);
+  if (!h) return null;
+  return h.external
+    ? <a href={h.href} target="_blank" rel="noopener noreferrer" className={className}>{children}</a>
+    : <Link to={h.href} className={className}>{children}</Link>;
+}
+
+const TONE: Record<string, { bg: string; title: string; eyebrow: string; body: string; light: boolean; fringe?: "navy" | "soft" }> = {
+  cream: { bg: "bg-cream", title: "text-primary", eyebrow: "text-paint-red", body: "text-muted", light: false },
+  sand: { bg: "bg-sand-deep border-y-[1.5px] border-sand", title: "text-primary", eyebrow: "text-paint-red", body: "text-muted", light: false },
+  navy: { bg: "bg-primary text-cream", title: "text-cream", eyebrow: "text-marigold", body: "text-[#cfd8ea]", light: true, fringe: "navy" },
+  marigold: { bg: "bg-marigold-soft", title: "text-ink", eyebrow: "text-paint-red", body: "text-[#3a3426]", light: false, fringe: "soft" },
+};
+const tone = (d: Data) => TONE[str(d, "tone")] ?? TONE.cream;
+
+// ---------- Built-in sections ----------
+
+function Hero({ d, categories }: { d: Data; categories: Category[] }) {
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
   const submit = (e: FormEvent) => {
     e.preventDefault();
     navigate(`/search${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ""}`);
   };
-
-  const allCategories = categories.data?.flatMap((c) => [c, ...c.children]) ?? [];
-
   return (
     <>
-      {/* ---------- Hero ---------- */}
-      <section className="bg-hero relative overflow-hidden border-b border-line">
-        <div className="bg-dots pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,black,transparent_70%)]" aria-hidden />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 pt-12 pb-16 sm:px-6 md:pt-20 md:pb-24 lg:grid-cols-[1.1fr_1fr]">
-          <div className="flex flex-col items-start gap-6">
-            <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/80 py-1 pr-3.5 pl-1 text-sm font-medium text-brand-navy shadow-soft backdrop-blur">
-              <span className="rounded-full bg-secondary-light px-2 py-0.5 text-xs font-semibold text-brand-green">নতুন</span>
-              বাংলাদেশের স্থানীয় সেবার এক ঠিকানা
-            </span>
-            <h1 className="text-[34px] leading-[1.2] font-bold text-brand-navy sm:text-5xl sm:leading-[1.15]">
-              আপনার এলাকার <span className="text-brand-gradient">বিশ্বস্ত সেবা</span>, এক ক্লিকে বুক করুন
-            </h1>
-            <p className="max-w-xl text-base text-muted sm:text-lg">
-              যাচাইকৃত ইলেকট্রিশিয়ান, এসি মেরামত, ক্লিনিং, সেলুন থেকে শুরু করে আইটি সাপোর্ট — রিভিউ দেখে বেছে নিন, সময় ঠিক করুন।
-            </p>
+      <section className="relative overflow-hidden bg-primary text-cream">
+        <PetalPattern />
+        <div className="relative mx-auto flex max-w-4xl flex-col items-center gap-7 px-4 pt-20 pb-24 text-center sm:px-6 md:pt-24 md:pb-32">
+          <Opt v={str(d, "eyebrow")}>{(v) => (
+            <p className="flex items-center gap-3 text-[15px] font-semibold tracking-wide text-marigold"><Rosette className="size-5" />{v}<Rosette className="size-5" /></p>
+          )}</Opt>
+          <h1 className="text-[44px] leading-[1.06] font-extrabold tracking-[-0.01em] sm:text-6xl lg:text-[84px]">
+            {str(d, "titleLine1")}
+            {str(d, "titleLine2").trim() && <><br /><span className="painted mt-3 inline-block text-[1.18em] text-marigold">{str(d, "titleLine2")}</span></>}
+          </h1>
+          <Opt v={str(d, "subtitle")}>{(v) => <p className="max-w-2xl text-lg whitespace-pre-line text-[#cfd8ea] sm:text-xl">{v}</p>}</Opt>
 
-            <form role="search" onSubmit={submit} className="flex w-full max-w-xl flex-col gap-2 rounded-xl border border-line bg-white p-2 shadow-lift sm:flex-row">
-              <label className="flex min-h-12 flex-1 items-center gap-2.5 px-3">
-                <Search className="size-5 text-primary" aria-hidden />
-                <span className="sr-only">কী সেবা খুঁজছেন</span>
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="যেমন: এসি মেরামত, ইলেকট্রিশিয়ান, গাজীপুর"
-                  className="w-full bg-transparent text-base text-ink outline-none placeholder:text-zinc-400" />
-              </label>
-              <button className="min-h-12 rounded-md bg-primary px-6 text-base font-semibold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.18)] hover:bg-primary-hover">সেবা খুঁজুন</button>
-            </form>
+          <form role="search" onSubmit={submit}
+            className="flex w-full max-w-2xl flex-wrap gap-1.5 rounded-[32px] bg-cream p-1.5 text-left shadow-[0_0_0_3px_var(--color-marigold)]">
+            <label className="flex min-h-14 min-w-0 flex-[1_1_220px] items-center gap-3 px-4">
+              <Search className="size-5 shrink-0 text-primary" aria-hidden />
+              <span className="sr-only">কী সেবা খুঁজছেন</span>
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={str(d, "searchPlaceholder")}
+                className="w-full min-w-0 bg-transparent text-lg text-ink outline-none placeholder:text-[#8a8170]" />
+            </label>
+            <button className="min-h-14 flex-[1_0_auto] rounded-full bg-paint-red px-9 font-display text-xl font-bold text-cream hover:bg-paint-red-hover sm:flex-none">{str(d, "searchButton") || "খুঁজুন"}</button>
+          </form>
 
-            {allCategories.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-subtle">জনপ্রিয়:</span>
-                {allCategories.slice(0, 4).map((c) => (
-                  <Link key={c.id} to={`/search?categoryId=${c.id}`} className="rounded-full border border-line bg-white/80 px-3 py-1 text-muted hover:border-primary/40 hover:text-primary">{c.nameBn}</Link>
-                ))}
-              </div>
-            )}
-
-            <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
-              {[[ShieldCheck, "যাচাইকৃত ব্যবসা"], [CalendarCheck, "ঝামেলাহীন বুকিং"], [Star, "আসল গ্রাহকের রিভিউ"]].map(([I, t]) => {
-                const Icon = I as typeof Star;
-                return <li key={t as string} className="flex items-center gap-1.5"><Icon className="size-4 text-brand-green" aria-hidden />{t as string}</li>;
-              })}
-            </ul>
-          </div>
-          <div className="px-3 sm:px-6"><HeroArt /></div>
-        </div>
-      </section>
-
-      {/* ---------- Categories ---------- */}
-      <section className="mx-auto max-w-6xl px-4 pt-20 sm:px-6">
-        <SectionHead eyebrow="ক্যাটাগরি" title="কোন সেবা খুঁজছেন?" subtitle="আপনার প্রয়োজনীয় সব সেবা এক জায়গায়" link={{ to: "/search", label: "সব সেবা দেখুন" }} />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {categories.isLoading && Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-[76px]" />)}
-          {allCategories.map((c) => (
-            <Link key={c.id} to={`/search?categoryId=${c.id}`} className="card card-hover group flex items-center gap-3 p-3.5">
-              <CategoryTile icon={c.icon} className="transition-transform group-hover:scale-105" />
-              <span className="min-w-0">
-                <span className="block truncate font-display text-[15px] font-semibold">{c.nameBn}</span>
-                <span className="block truncate text-xs text-subtle">{c.nameEn}</span>
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------- Featured ---------- */}
-      <section className="mx-auto max-w-6xl px-4 pt-20 sm:px-6">
-        <SectionHead eyebrow="শীর্ষ রেটিং" title="যাচাইকৃত শীর্ষ ব্যবসা" subtitle="মডারেটর ও মাঠ পরিদর্শকের মাধ্যমে যাচাই করা" link={{ to: "/search?sort=highest_rated", label: "আরও দেখুন" }} />
-        {featured.isLoading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-80" />)}</div>
-        ) : featured.data?.items.length ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{featured.data.items.map((b) => <BusinessCardView key={b.id} b={b} />)}</div>
-        ) : (
-          <div className="card flex flex-col items-center gap-3 p-10 text-center">
-            <Sticker tilt={-4} className="text-brand-green"><BadgeCheck className="size-4" /> শীঘ্রই আসছে</Sticker>
-            <p className="text-muted">এখনও কোনো যাচাইকৃত ব্যবসা প্রকাশিত হয়নি। প্রথম ব্যবসা পেজটি আপনিই তৈরি করুন!</p>
-            <LinkButton to="/business/new" variant="outline">ব্যবসা পেজ তৈরি করুন</LinkButton>
-          </div>
-        )}
-      </section>
-
-      {/* ---------- How it works ---------- */}
-      <section id="how" className="mx-auto max-w-6xl scroll-mt-24 px-4 pt-20 sm:px-6">
-        <SectionHead eyebrow="সহজ ধাপ" title="কীভাবে কাজ করে" />
-        <div className="grid gap-5 md:grid-cols-2">
-          {[{ title: "গ্রাহকের জন্য", steps: CUSTOMER_STEPS, tint: "bg-primary-light text-primary", sticker: "সেবা নিন" },
-            { title: "ব্যবসায়ীর জন্য", steps: BUSINESS_STEPS, tint: "bg-secondary-light text-brand-green", sticker: "ব্যবসা বাড়ান" }].map((col) => (
-            <div key={col.title} className="card relative p-6 sm:p-8">
-              <div className="mb-6 flex items-center justify-between gap-3">
-                <h3 className="text-xl font-semibold">{col.title}</h3>
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${col.tint}`}>{col.sticker}</span>
-              </div>
-              <ol className="relative flex flex-col gap-5">
-                <span className="absolute top-5 bottom-5 left-5 w-px bg-line" aria-hidden />
-                {col.steps.map((s) => (
-                  <li key={s.t} className="relative flex gap-4">
-                    <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ring-4 ring-white ${col.tint}`}><s.icon className="size-[18px]" aria-hidden /></span>
-                    <div className="pt-0.5"><div className="font-display text-base font-semibold">{s.t}</div><div className="text-sm text-muted">{s.d}</div></div>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------- For business ---------- */}
-      <section className="mx-auto max-w-6xl px-4 pt-20 sm:px-6">
-        <div className="bg-brand relative overflow-hidden rounded-xl p-6 text-white shadow-pop sm:p-10 lg:p-12">
-          <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgb(255_255_255/0.35)_1px,transparent_1px)] [background-size:22px_22px]" aria-hidden />
-          <div className="absolute -right-20 -bottom-24 size-80 rounded-full bg-brand-lime/25 blur-2xl" aria-hidden />
-          <div className="relative grid gap-10 lg:grid-cols-[1fr_1.15fr] lg:items-center">
-            <div className="flex flex-col items-start gap-4">
-              <Sticker tilt={-3} className="text-brand-navy"><img src="/brand/logo-mark.png" alt="" className="h-5 w-auto" /> ব্যবসা ওয়ার্কস্পেস</Sticker>
-              <h2 className="text-[28px] font-bold leading-snug sm:text-4xl">শুধু তালিকাভুক্তি নয় — পুরো ব্যবসা এক জায়গা থেকে চালান</h2>
-              <p className="max-w-md text-blue-100">একই অ্যাকাউন্ট থেকে এক বা একাধিক ব্যবসা পেজ, টিম সদস্য ও ভূমিকা — লগআউট ছাড়াই ওয়ার্কস্পেস বদলান।</p>
-              <div className="mt-2 flex flex-wrap gap-3">
-                <Link to="/business/new" className="inline-flex min-h-12 items-center gap-2 rounded-md bg-white px-6 font-semibold text-brand-navy shadow-lift hover:bg-blue-50">
-                  ব্যবসা পেজ তৈরি করুন <ArrowRight className="size-4" aria-hidden />
-                </Link>
-                <Link to="/pricing" className="inline-flex min-h-12 items-center rounded-md border border-white/30 px-6 font-semibold text-white hover:bg-white/10">
-                  প্ল্যান ও মূল্য দেখুন
-                </Link>
-              </div>
-            </div>
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {FEATURES.map(([I, t, d]) => (
-                <li key={t} className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.07] p-4 backdrop-blur-sm">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-white/10 text-brand-lime"><I className="size-[18px]" aria-hidden /></span>
-                  <span><span className="block font-display font-semibold">{t}</span><span className="block text-sm text-blue-100/90">{d}</span></span>
-                </li>
+          {categories.length > 0 && (
+            <p className="text-[15px] text-[#cfd8ea]">
+              {str(d, "popularLabel")}{" "}
+              {categories.slice(0, 5).map((c, i) => (
+                <span key={c.id}>
+                  {i > 0 && " · "}
+                  <Link to={`/search?categoryId=${c.id}`} className="text-cream underline decoration-marigold/50 underline-offset-4 hover:text-marigold">{c.nameBn}</Link>
+                </span>
               ))}
-            </ul>
-          </div>
+            </p>
+          )}
         </div>
       </section>
-
-      {/* ---------- Final CTA ---------- */}
-      <section className="mx-auto max-w-6xl px-4 pt-20 sm:px-6">
-        <div className="card relative flex flex-col items-center gap-4 overflow-hidden px-6 py-14 text-center">
-          <div className="bg-dots absolute inset-0 [mask-image:radial-gradient(closest-side,black,transparent)]" aria-hidden />
-          <img src="/brand/logo-mark.png" alt="" className="relative h-16 w-auto drop-shadow-md" />
-          <h2 className="relative text-3xl font-bold text-brand-navy sm:text-4xl">আজই শুরু করুন</h2>
-          <p className="relative max-w-md text-muted">একটি অ্যাকাউন্ট — সেবা খুঁজুন, অথবা আপনার ব্যবসা পেজ তৈরি করুন।</p>
-          <div className="relative mt-2 flex flex-wrap justify-center gap-3">
-            <LinkButton to="/search" size="lg">সেবা খুঁজুন</LinkButton>
-            <LinkButton to="/register" size="lg" variant="outline">অ্যাকাউন্ট তৈরি করুন</LinkButton>
-          </div>
-          <span className="relative mt-3 font-num text-xs tracking-[0.25em] text-subtle">DISCOVER · BOOK · CONNECT · GROW</span>
-        </div>
-      </section>
+      <Fringe tone="navy" />
     </>
   );
 }
 
-function SectionHead({ eyebrow, title, subtitle, link }: { eyebrow?: string; title: string; subtitle?: string; link?: { to: string; label: string } }) {
+function Categories({ d, categories, loading }: { d: Data; categories: Category[]; loading: boolean }) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        {eyebrow && <span className="mb-1.5 block text-sm font-semibold text-brand-green">{eyebrow}</span>}
-        <h2 className="text-2xl font-bold text-brand-navy sm:text-[32px]">{title}</h2>
-        {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
+    <section className="mx-auto max-w-6xl px-4 pt-20 pb-24 sm:px-6">
+      <SectionTitle eyebrow={str(d, "eyebrow")} title={str(d, "title")} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {loading && Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-[92px] rounded-[14px]" />)}
+        {categories.map((c) => (
+          <Link key={c.id} to={`/search?categoryId=${c.id}`}
+            className="group flex items-center gap-4 rounded-[14px] border-[1.5px] border-sand bg-paper px-4 py-4 transition-colors hover:border-ink">
+            <CategoryTile id={c.id} name={c.nameBn} className="size-[60px] text-[30px] transition-transform group-hover:-rotate-6" />
+            <span className="min-w-0">
+              <span className="block font-display text-[19px] leading-snug font-bold [overflow-wrap:anywhere]">{c.nameBn}</span>
+              <span className="line-clamp-1 text-sm text-muted">
+                {c.children.length ? c.children.slice(0, 3).map((x) => x.nameBn).join(" · ") : c.nameEn}
+              </span>
+            </span>
+          </Link>
+        ))}
       </div>
-      {link && <Link to={link.to} className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:text-primary-hover">{link.label} <ArrowRight className="size-4" aria-hidden /></Link>}
-    </div>
+    </section>
+  );
+}
+
+function Steps({ d }: { d: Data }) {
+  const items = list(d, "items");
+  if (!items.length) return null;
+  const cols = items.length >= 4 ? "md:grid-cols-4" : items.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2";
+  return (
+    <section className="border-y-[1.5px] border-sand bg-paper">
+      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+        <SectionTitle eyebrow={str(d, "eyebrow")} title={str(d, "title")} />
+        <ol className={`relative grid gap-10 md:gap-8 ${cols}`}>
+          <span aria-hidden className="absolute top-8 right-[14%] left-[14%] hidden border-t-2 border-dashed border-sand md:block" />
+          {items.map((s, i) => {
+            const p = paintFor(i);
+            return (
+              <li key={i} className="relative flex flex-col items-center gap-3 text-center">
+                <span aria-hidden className="flex size-16 items-center justify-center rounded-full font-painted text-[34px] leading-none"
+                  style={{ background: p.bg, color: p.fg, boxShadow: `inset 0 0 0 4px var(--color-paper), 0 0 0 2px ${p.bg}` }}>
+                  <span className="translate-y-[0.06em]">{bn(i + 1)}</span>
+                </span>
+                <span className="font-display text-2xl font-bold text-primary">{str(s, "title")}</span>
+                <span className="max-w-xs whitespace-pre-line text-muted">{str(s, "body")}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+function Featured({ d, items, loading }: { d: Data; items: BusinessCard[]; loading: boolean }) {
+  return (
+    <section className="mx-auto max-w-6xl px-4 pt-20 pb-24 sm:px-6">
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-[26px] text-paint-red">{v}</span>}</Opt>
+          <h2 className="text-4xl font-extrabold text-primary sm:text-[52px]">{str(d, "title")}</h2>
+        </div>
+        <Opt v={str(d, "linkLabel")}>{(v) => (
+          <Link to="/search?sort=highest_rated" className="font-bold text-primary underline decoration-paint-red decoration-2 underline-offset-4 hover:text-paint-red">{v}</Link>
+        )}</Opt>
+      </div>
+      {loading ? (
+        <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-80" />)}</div>
+      ) : items.length ? (
+        <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">{items.map((b, i) => <BusinessCardView key={b.id} b={b} index={i} />)}</div>
+      ) : (
+        <div className="signboard items-center gap-3 p-10 text-center">
+          <Rosette className="size-10" />
+          <p className="whitespace-pre-line text-muted">{str(d, "emptyText")}</p>
+          <Opt v={str(d, "emptyButton")}>{(v) => <Link to="/business/new" className="inline-flex min-h-11 items-center rounded-full bg-primary px-6 font-bold text-cream hover:bg-primary-hover">{v}</Link>}</Opt>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Winter and wedding season (Nov–Feb), summer (Mar–Jun) or monsoon (Jul–Oct). */
+function currentSeason(month = new Date().getMonth()) {
+  return month >= 2 && month <= 5 ? "summer" : month >= 6 && month <= 9 ? "monsoon" : "winter";
+}
+
+function Seasonal({ d }: { d: Data }) {
+  const now = group(d, currentSeason());
+  const picks = list(now, "picks");
+  if (!picks.length) return null;
+  return (
+    <section className="border-y-[1.5px] border-sand bg-sand-deep">
+      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+        <div className="mb-10 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-[26px] text-paint-red">{v}</span>}</Opt>
+            <h2 className="text-[32px] leading-tight font-extrabold text-primary sm:text-[44px]">{str(now, "title")}</h2>
+          </div>
+          <span className="text-[15px] text-muted">{str(now, "note")}</span>
+        </div>
+        <div className="grid gap-6 md:grid-cols-3">
+          {picks.map((p, i) => {
+            const paint = paintFor(i + 1);
+            const q = str(p, "query").trim() || str(p, "title");
+            return (
+              <Link key={i} to={`/search?q=${encodeURIComponent(q)}`}
+                className="group flex flex-col gap-3 rounded-[14px] border-[1.5px] border-sand bg-paper p-6 transition-colors hover:border-ink">
+                <span aria-hidden className="h-1.5 w-14 rounded-full" style={{ background: paint.bg }} />
+                <span className="font-display text-2xl font-bold text-primary group-hover:text-paint-red">{str(p, "title")}</span>
+                <span className="whitespace-pre-line text-muted">{str(p, "body")}</span>
+                <Opt v={str(d, "linkLabel")}>{(v) => <span className="mt-auto pt-2 text-[15px] font-bold text-paint-red">{v}</span>}</Opt>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Testimonials({ d }: { d: Data }) {
+  return (
+    <section className="mx-auto max-w-6xl px-4 pt-20 pb-24 sm:px-6">
+      <SectionTitle eyebrow={str(d, "eyebrow")} title={str(d, "title")} />
+      <ul className="columns-1 gap-6 md:columns-2 lg:columns-3">
+        {list(d, "items").map((t, i) => {
+          const p = paintFor(i);
+          return (
+            <li key={i} className="mb-6 break-inside-avoid">
+              <figure className="flex flex-col gap-4 rounded-[14px] border-[1.5px] border-sand bg-paper p-6">
+                <span aria-hidden className="h-6 font-painted text-6xl leading-none" style={{ color: p.bg }}>“</span>
+                <blockquote className="text-[17px] leading-relaxed whitespace-pre-line text-ink">{str(t, "quote")}</blockquote>
+                <figcaption className="flex items-center gap-3 border-t border-sand pt-4">
+                  <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full font-painted text-xl leading-none" style={{ background: p.bg, color: p.fg }}>
+                    <span className="translate-y-[0.06em]">{initialOf(str(t, "name"))}</span>
+                  </span>
+                  <span className="min-w-0 text-sm">
+                    <span className="block text-[15px] font-bold text-ink">{str(t, "name")}</span>
+                    <span className="block text-muted">{[str(t, "area"), str(t, "service")].filter((x) => x.trim()).join(" · ")}</span>
+                  </span>
+                </figcaption>
+              </figure>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function Areas({ d, divisions }: { d: Data; divisions: Zone[] }) {
+  return (
+    <>
+      <section className="relative overflow-hidden bg-primary text-cream">
+        <PetalPattern />
+        <div className="relative mx-auto max-w-6xl px-4 py-20 text-center sm:px-6">
+          <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-[26px] text-marigold">{v}</span>}</Opt>
+          <h2 className="text-[32px] leading-tight font-extrabold sm:text-[44px]">{str(d, "title")}</h2>
+          <ul className="mx-auto mt-10 flex max-w-4xl flex-wrap justify-center gap-3">
+            {divisions.map((z) => (
+              <li key={z.id}>
+                <Link to={`/search?zoneId=${z.id}`}
+                  className="inline-flex min-h-12 items-center gap-2 rounded-full border-[1.5px] border-cream/30 px-5 text-[17px] font-semibold text-cream transition-colors hover:border-marigold hover:bg-marigold hover:text-ink">
+                  {z.nameBn}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+      <Fringe tone="navy" />
+    </>
+  );
+}
+
+function Faq({ d }: { d: Data }) {
+  return (
+    <section className="mx-auto max-w-3xl px-4 pt-20 pb-24 sm:px-6">
+      <SectionTitle eyebrow={str(d, "eyebrow")} title={str(d, "title")} />
+      <div className="flex flex-col gap-3">
+        {list(d, "items").map((f, i) => (
+          <details key={i} className="group rounded-[14px] border-[1.5px] border-sand bg-paper open:border-ink">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 font-display text-lg font-bold text-primary [&::-webkit-details-marker]:hidden">
+              {str(f, "q")}
+              <Rosette color="#c4373f" className="size-5 shrink-0 transition-transform group-open:rotate-45" />
+            </summary>
+            <p className="px-5 pb-5 whitespace-pre-line text-muted">{str(f, "a")}</p>
+          </details>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Business({ d }: { d: Data }) {
+  const points = list(d, "points");
+  return (
+    <>
+      <section id="business" className="relative scroll-mt-20 overflow-hidden border-t-[1.5px] border-sand bg-marigold-soft">
+        <PetalPattern className="opacity-[0.5]" color="#fbf3e2" />
+        <div className={`relative mx-auto grid max-w-6xl items-center gap-14 px-4 py-20 sm:px-6 md:py-24 ${points.length ? "lg:grid-cols-2" : ""}`}>
+          <div className="flex min-w-0 flex-col items-start gap-6">
+            <h2 className="text-[38px] leading-[1.08] font-extrabold text-ink sm:text-[54px]">
+              {str(d, "titleLine1")}
+              {str(d, "titleLine2").trim() && <><br /><span className="painted-soft text-[1.12em] text-paint-red">{str(d, "titleLine2")}</span></>}
+            </h2>
+            <Opt v={str(d, "body")}>{(v) => <p className="max-w-md whitespace-pre-line text-[#3a3426]">{v}</p>}</Opt>
+            <div className="flex flex-wrap gap-3">
+              <Opt v={str(d, "primaryButton")}>{(v) => <Link to="/business/new" className="inline-flex min-h-12 items-center rounded-full bg-primary px-7 text-lg font-bold text-cream hover:bg-primary-hover">{v}</Link>}</Opt>
+              <Opt v={str(d, "secondaryButton")}>{(v) => <Link to="/pricing" className="inline-flex min-h-12 items-center rounded-full border-2 border-ink px-6 font-bold text-ink hover:bg-ink hover:text-cream">{v}</Link>}</Opt>
+            </div>
+          </div>
+          {points.length > 0 && (
+            <ol className="flex min-w-0 flex-col gap-6 rounded-[18px] bg-paper p-6 shadow-[0_0_0_2px_var(--color-ink)] sm:p-8">
+              {points.map((p, i) => {
+                const paint = paintFor(i);
+                return (
+                  <li key={i} className="flex items-start gap-4">
+                    <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-full font-painted text-[26px] leading-none" style={{ background: paint.bg, color: paint.fg }}>
+                      <span className="translate-y-[0.06em]">{bn(i + 1)}</span>
+                    </span>
+                    <span><b className="block font-display text-xl">{str(p, "title")}</b><span className="whitespace-pre-line">{str(p, "body")}</span></span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+      </section>
+      <Fringe tone="soft" className="bg-primary" />
+    </>
+  );
+}
+
+// ---------- Custom sections ----------
+
+function TextSection({ d }: { d: Data }) {
+  const t = tone(d);
+  return (
+    <>
+      <section className={`relative overflow-hidden ${t.bg}`}>
+        {t.light && <PetalPattern />}
+        <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-5 px-4 py-20 text-center sm:px-6">
+          <Opt v={str(d, "eyebrow")}>{(v) => <span className={`font-painted text-[26px] ${t.eyebrow}`}>{v}</span>}</Opt>
+          <Opt v={str(d, "title")}>{(v) => <h2 className={`text-[32px] leading-tight font-extrabold sm:text-[44px] ${t.title}`}>{v}</h2>}</Opt>
+          <Opt v={str(d, "body")}>{(v) => <p className={`text-lg whitespace-pre-line ${t.body}`}>{v}</p>}</Opt>
+          {str(d, "buttonLabel").trim() && (
+            <SmartLink to={str(d, "buttonLink")} className="mt-2 inline-flex min-h-12 items-center rounded-full bg-paint-red px-7 text-lg font-bold text-cream hover:bg-paint-red-hover">{str(d, "buttonLabel")}</SmartLink>
+          )}
+        </div>
+      </section>
+      {t.fringe && <Fringe tone={t.fringe} />}
+    </>
+  );
+}
+
+function CardsSection({ d }: { d: Data }) {
+  const t = tone(d);
+  const items = list(d, "items");
+  return (
+    <>
+      <section className={`relative overflow-hidden ${t.bg}`}>
+        {t.light && <PetalPattern />}
+        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          {(str(d, "title").trim() || str(d, "eyebrow").trim()) && <SectionTitle eyebrow={str(d, "eyebrow")} title={str(d, "title")} light={t.light} />}
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((c, i) => {
+              const paint = paintFor(i);
+              return (
+                <div key={i} className="flex flex-col gap-3 rounded-[14px] border-[1.5px] border-sand bg-paper p-6 text-ink">
+                  <span aria-hidden className="h-1.5 w-14 rounded-full" style={{ background: paint.bg }} />
+                  <span className="font-display text-2xl font-bold text-primary">{str(c, "title")}</span>
+                  <Opt v={str(c, "body")}>{(v) => <span className="whitespace-pre-line text-muted">{v}</span>}</Opt>
+                  {str(c, "linkLabel").trim() && (
+                    <SmartLink to={str(c, "link")} className="mt-auto pt-2 text-[15px] font-bold text-paint-red hover:underline">{str(c, "linkLabel")}</SmartLink>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+      {t.fringe && <Fringe tone={t.fringe} />}
+    </>
+  );
+}
+
+function BannerSection({ d }: { d: Data }) {
+  const t = tone(d);
+  if (!str(d, "text").trim()) return null;
+  return (
+    <section className={t.bg}>
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-3 px-4 py-6 text-center sm:px-6">
+        <Rosette className="size-6 shrink-0" />
+        <p className={`font-display text-xl font-bold ${t.title}`}>{str(d, "text")}</p>
+        {str(d, "buttonLabel").trim() && (
+          <SmartLink to={str(d, "buttonLink")} className="inline-flex min-h-11 items-center rounded-full bg-paint-red px-6 font-bold text-cream hover:bg-paint-red-hover">{str(d, "buttonLabel")}</SmartLink>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ---------- Verified provider drawn as a para shop ----------
+
+const ROTATE_MS = 5000;
+
+/**
+ * One verified business drawn as a para shop (signboard, striped awning, window with its cover, counter with
+ * details). It cycles through the list; the list doubles as tabs. Rotation pauses on hover or focus, can be paused
+ * (WCAG 2.2.2), and stays still for reduced-motion users.
+ */
+function ShopShowcase({ d, businesses }: { d: Data; businesses: BusinessCard[] }) {
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [hovering, setHovering] = useState(false);
+  const [reduced] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const count = businesses.length;
+  const rotating = count > 1 && !paused && !hovering && !reduced;
+
+  useEffect(() => {
+    if (!rotating) return;
+    const t = window.setInterval(() => setIndex((i) => (i + 1) % count), ROTATE_MS);
+    return () => window.clearInterval(t);
+  }, [rotating, count]);
+
+  const current = index % count;
+  const b = businesses[current];
+  const hover = { onMouseEnter: () => setHovering(true), onMouseLeave: () => setHovering(false), onFocus: () => setHovering(true), onBlur: () => setHovering(false) };
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 pt-20 pb-24 sm:px-6" aria-labelledby="shop-title">
+      <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+        <div className="flex min-w-0 flex-col gap-5" {...hover}>
+          <div>
+            <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-[26px] text-paint-red">{v}</span>}</Opt>
+            <h2 id="shop-title" className="text-4xl leading-tight font-extrabold text-primary sm:text-[48px]">{str(d, "title")}</h2>
+          </div>
+          <Opt v={str(d, "body")}>{(v) => <p className="whitespace-pre-line text-muted">{v}</p>}</Opt>
+          {count > 1 && (
+            <ul className="flex flex-col gap-2">
+              {businesses.map((x, i) => (
+                <li key={x.id}>
+                  <button type="button" onClick={() => setIndex(i)} aria-pressed={i === current}
+                    className={`flex w-full items-center gap-3 rounded-[12px] border-[1.5px] px-3 py-2.5 text-left transition-colors ${i === current ? "border-ink bg-paper" : "border-transparent hover:border-sand hover:bg-paper/60"}`}>
+                    <CategoryTile id={x.categoryId} name={x.categoryName} className="size-10 text-xl" />
+                    <span className="min-w-0 flex-1">
+                      <span className={`block truncate font-display text-lg font-bold ${i === current ? "text-paint-red" : "text-primary"}`}>{x.name}</span>
+                      <span className="block truncate text-sm text-muted">{x.categoryName}{x.zoneName && ` · ${x.zoneName}`}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {count > 1 && !reduced && (
+            <button type="button" onClick={() => setPaused((p) => !p)}
+              className="inline-flex min-h-10 items-center gap-2 self-start rounded-full px-3 text-sm font-semibold text-muted hover:bg-sand-deep hover:text-ink">
+              {paused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
+              {paused ? "নিজে থেকে বদলানো চালু করুন" : "নিজে থেকে বদলাচ্ছে, থামান"}
+            </button>
+          )}
+        </div>
+
+        <div className="order-first mx-auto w-full max-w-[620px] lg:order-none" {...hover}>
+          <div key={b.id} className="sign-swap">
+            {/* Signboard */}
+            <div className="relative z-20 mx-3 rounded-md border-4 border-marigold bg-primary px-12 py-4 text-center shadow-[0_6px_0_var(--color-night)] sm:mx-8">
+              <Rosette className="absolute top-1/2 left-3 size-7 -translate-y-1/2" />
+              <Rosette color="#e9b24a" className="absolute top-1/2 right-3 size-7 -translate-y-1/2" />
+              <Link to={`/b/${b.slug}`} className="block truncate font-display text-[26px] leading-tight font-extrabold text-cream hover:text-marigold sm:text-[32px]">{b.name}</Link>
+              {b.categoryName && <span className="block truncate font-painted text-xl text-marigold">{b.categoryName}</span>}
+            </div>
+            <div aria-hidden className="mx-12 flex justify-between sm:mx-20"><span className="h-4 w-2 bg-night" /><span className="h-4 w-2 bg-night" /></div>
+            {/* Awning over the shopfront */}
+            <div className="relative z-10 -mx-3"><Awning /></div>
+            <div className="-mt-6 border-x-[10px] border-primary bg-[#e7d3a8] px-4 pt-10 pb-5 sm:px-6">
+              <div className="grid gap-5 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+                <Link to={`/b/${b.slug}`} tabIndex={-1} aria-hidden className="relative block min-h-[220px] overflow-hidden border-[6px] border-primary bg-cream">
+                  {b.coverUrl ? <img src={b.coverUrl} alt="" className="absolute inset-0 size-full object-cover" /> : <CoverArt categoryId={b.categoryId} className="absolute inset-0 size-full" />}
+                </Link>
+                <div className="flex min-w-0 flex-col gap-2 rounded-md border-2 border-ink bg-paper p-4">
+                  {b.isVerified && <span className="inline-flex items-center gap-1 self-start rounded-full bg-leaf px-2.5 py-0.5 text-[13px] font-semibold text-white"><BadgeCheck className="size-3.5" aria-hidden />যাচাইকৃত</span>}
+                  {b.zoneName && <span className="text-[15px] font-semibold text-ink">{b.zoneName}</span>}
+                  <span className="text-[15px]">{b.reviewCount > 0 ? <><Stars value={b.avgRating} /> <span className="text-subtle">({bn(b.reviewCount)} রিভিউ)</span></> : <span className="text-subtle">{str(d, "newLabel")}</span>}</span>
+                  {b.startingPrice != null && <span className="font-display text-2xl font-bold text-paint-red">{taka(b.startingPrice)} <span className="text-base font-semibold text-muted">থেকে</span></span>}
+                  <div className="mt-auto flex flex-col gap-2 pt-2">
+                    <Link to={`/b/${b.slug}/book`} className="inline-flex min-h-11 items-center justify-center rounded-full bg-paint-red px-5 font-bold text-cream hover:bg-paint-red-hover">{str(d, "bookButton") || "বুক করুন"}</Link>
+                    <Link to={`/b/${b.slug}`} className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink px-5 font-bold text-ink hover:bg-ink hover:text-cream">{str(d, "profileButton") || "প্রোফাইল দেখুন"}</Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Plinth and footpath */}
+            <div aria-hidden className="h-3 bg-primary" />
+            <div aria-hidden className="-mx-5 h-4 rounded-b-md bg-sand" />
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

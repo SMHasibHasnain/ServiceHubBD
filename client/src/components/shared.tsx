@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { BadgeCheck, MapPin } from "lucide-react";
+import { BadgeCheck } from "lucide-react";
 import { api } from "../api/client";
 import type { BusinessCard as Card, Category, Zone } from "../api/types";
 import { bn, taka } from "../lib/format";
-import { Avatar, Stars } from "./ui";
+import { Stars } from "./ui";
 import { CoverArt } from "./brand";
 
 export function useCategories() {
@@ -72,35 +72,41 @@ function ZoneLevelSelect({ parentId, label, value, onChange, required }: {
   );
 }
 
-export function BusinessCardView({ b }: { b: Card }) {
+const CARD_SHADOWS = ["var(--color-primary)", "var(--color-paint-red)", "var(--color-leaf)"];
+
+/** Signboard-style business card: photo on top, ink outline, hard shadow cycling through the paint colours. */
+export function BusinessCardView({ b, index }: { b: Card; index?: number }) {
+  const shadow = CARD_SHADOWS[(index ?? 0) % CARD_SHADOWS.length];
   return (
-    <article className="card card-hover group flex flex-col overflow-hidden">
+    <article className="signboard group" style={{ "--signboard-shadow": shadow } as CSSProperties}>
       <Link to={`/b/${b.slug}`} className="flex flex-1 flex-col">
-        <div className="relative aspect-[16/8] border-b border-line">
-          {b.coverUrl ? <img src={b.coverUrl} alt="" className="size-full object-cover transition duration-500 group-hover:scale-[1.03]" loading="lazy" /> : <CoverArt categoryId={b.categoryId} className="size-full" />}
-          {b.isVerified && <span className="sticker absolute top-3 right-3 border-2 px-2.5 py-0.5 text-xs text-brand-green" style={{ rotate: "3deg" }}><BadgeCheck className="size-3.5" aria-hidden />যাচাইকৃত</span>}
-          <span className="absolute -bottom-6 left-4 rounded-lg border-[3px] border-white bg-white shadow-card">
-            {b.logoUrl ? <img src={b.logoUrl} alt="" className="size-12 rounded-md object-cover" /> : <Avatar name={b.name} className="size-12 text-sm" />}
-          </span>
+        <div className="relative aspect-[16/9] border-b-[2.5px] border-ink">
+          {b.coverUrl ? <img src={b.coverUrl} alt="" className="size-full object-cover" loading="lazy" /> : <CoverArt categoryId={b.categoryId} className="size-full" />}
+          {b.isVerified && (
+            <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-leaf px-2.5 py-0.5 text-xs font-semibold text-white">
+              <BadgeCheck className="size-3.5" aria-hidden />যাচাইকৃত
+            </span>
+          )}
         </div>
-        <div className="flex flex-1 flex-col gap-1 px-4 pt-9 pb-3">
-          <div className="flex items-center gap-1.5">
-            <h3 className="truncate font-display text-[17px] font-semibold group-hover:text-primary">{b.name}</h3>
-            {b.isVerified && <BadgeCheck className="size-4 shrink-0 text-brand-green" aria-label="যাচাইকৃত" />}
+        <div className="flex flex-1 flex-col gap-0.5 px-5 pt-4 pb-3">
+          <div className="flex items-center gap-2.5">
+            {b.logoUrl && <img src={b.logoUrl} alt="" className="size-9 rounded-full border-2 border-ink object-cover" />}
+            <h3 className="min-w-0 truncate font-display text-[22px] leading-tight font-bold text-primary group-hover:text-paint-red">{b.name}</h3>
           </div>
-          <span className="flex items-center gap-1 text-sm text-muted"><MapPin className="size-3.5" aria-hidden />{b.categoryName}{b.zoneName && ` · ${b.zoneName}`}</span>
-          <span className="text-sm">
-            {b.reviewCount > 0 ? <><Stars value={b.avgRating} /> <span className="text-subtle">({bn(b.reviewCount)} রিভিউ)</span></> : <span className="text-subtle">নতুন</span>}
-          </span>
+          <span className="text-[15px] text-muted">{b.categoryName}{b.zoneName && ` · ${b.zoneName}`}</span>
           <div className="mt-1 flex flex-wrap gap-1.5">
-            {b.offersHomeService && <span className="rounded-md border border-line px-2 py-0.5 text-xs text-muted">হোম সার্ভিস</span>}
-            {b.offersEmergencyService && <span className="rounded-md border border-line px-2 py-0.5 text-xs text-muted">জরুরি সেবা</span>}
+            {b.offersHomeService && <span className="rounded-full bg-sand-deep px-2.5 py-0.5 text-xs font-medium text-ink">হোম সার্ভিস</span>}
+            {b.offersEmergencyService && <span className="rounded-full bg-sand-deep px-2.5 py-0.5 text-xs font-medium text-ink">জরুরি সেবা</span>}
           </div>
         </div>
       </Link>
-      <div className="flex items-center justify-between gap-2 border-t border-line px-4 py-3">
-        <span className="text-sm text-muted">{b.startingPrice != null ? <>শুরু <strong className="font-semibold text-ink">{taka(b.startingPrice)}</strong></> : "মূল্য জানতে যোগাযোগ"}</span>
-        <Link to={`/b/${b.slug}`} className="inline-flex min-h-10 items-center rounded-md bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover">বুক করুন</Link>
+      <div className="flex items-center justify-between gap-2 px-5 pb-4 font-semibold">
+        <span className="text-[15px]">
+          {b.reviewCount > 0 ? <><Stars value={b.avgRating} /> <span className="font-normal text-subtle">({bn(b.reviewCount)})</span></> : <span className="font-normal text-subtle">নতুন</span>}
+        </span>
+        {b.startingPrice != null
+          ? <span className="text-[15px] text-paint-red">{taka(b.startingPrice)} থেকে</span>
+          : <span className="text-sm font-normal text-subtle">মূল্য জানতে যোগাযোগ</span>}
       </div>
     </article>
   );

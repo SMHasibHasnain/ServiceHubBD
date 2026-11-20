@@ -44,8 +44,6 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-6">
       <div className="bg-brand relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-xl p-5 text-white shadow-lift sm:p-7">
-        <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgb(255_255_255/0.35)_1px,transparent_1px)] [background-size:20px_20px]" aria-hidden />
-        <div className="absolute -right-10 -bottom-16 size-56 rounded-full bg-brand-lime/25 blur-xl" aria-hidden />
         <div className="relative min-w-0">
           <p className="text-sm text-blue-100">{dateLong(new Date().toISOString())}</p>
           <h1 className="mt-1 truncate text-2xl font-bold sm:text-3xl">স্বাগতম, {biz.name}</h1>

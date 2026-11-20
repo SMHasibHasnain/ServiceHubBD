@@ -4,17 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3, Bell, CalendarDays, ClipboardCheck, CreditCard, Eye, Flag, Home, LayoutDashboard, Menu, Package, ScrollText,
   Search, Settings, ShieldCheck, Star, User as UserIcon, Users, UsersRound,
-  Palette, Heart, Briefcase,
+  Palette, Heart, Briefcase, LayoutTemplate, Tags,
 } from "lucide-react";
 import { api, session } from "../api/client";
 import type { BusinessDetail, WorkspaceType } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { VERIFICATION_STATUS, bn } from "../lib/format";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
-import { Logo, LogoFull } from "./brand";
+import { Band, Logo, PetalPattern } from "./brand";
+import { str, useSiteText } from "../lib/homeContent";
 
 export { Logo };
-import { Avatar, Badge, LinkButton } from "./ui";
+import { Avatar, Badge } from "./ui";
 
 const PageLoading = () => <div className="p-10 text-center text-muted" role="status">তথ্য লোড হচ্ছে...</div>;
 
@@ -34,14 +35,16 @@ function NotificationBell({ to }: { to: string }) {
 /** Topbar for guests and the customer workspace. */
 function PublicTopbar() {
   const { status } = useAuth();
+  const t = useSiteText();
+  const link = ({ isActive }: { isActive: boolean }) => `transition-colors hover:text-paint-red ${isActive ? "text-paint-red" : "text-ink"}`;
   return (
-    <header className="sticky top-0 z-30 border-b border-line/80 bg-white/85 backdrop-blur-md">
+    <header className="sticky top-0 z-30 border-b border-sand bg-cream/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-x-8 px-4 sm:px-6">
         <Logo compact />
-        <nav aria-label="প্রধান মেনু" className="hidden flex-1 gap-7 text-[15px] font-medium md:flex">
-          <NavLink to="/search" className="text-muted transition-colors hover:text-primary">সেবা খুঁজুন</NavLink>
-          <Link to="/#how" className="text-muted transition-colors hover:text-primary">কীভাবে কাজ করে</Link>
-          <Link to="/business/new" className="text-muted transition-colors hover:text-primary">ব্যবসার জন্য</Link>
+        <nav aria-label="প্রধান মেনু" className="hidden flex-1 gap-7 text-[15px] font-semibold md:flex">
+          <NavLink to="/search" className={link}>{str(t, "navSearch")}</NavLink>
+          <Link to="/#business" className="text-ink transition-colors hover:text-paint-red">{str(t, "navBusiness")}</Link>
+          <NavLink to="/pricing" className={link}>{str(t, "navPricing")}</NavLink>
         </nav>
         <div className="ml-auto flex items-center gap-1.5">
           {status === "authenticated" ? (
@@ -51,8 +54,8 @@ function PublicTopbar() {
             </>
           ) : status === "anonymous" ? (
             <>
-              <LinkButton to="/login" variant="ghost" size="sm">লগইন করুন</LinkButton>
-              <LinkButton to="/register" size="sm" className="hidden sm:inline-flex">অ্যাকাউন্ট তৈরি করুন</LinkButton>
+              <Link to="/login" className="inline-flex min-h-10 items-center px-3 text-[15px] font-semibold text-ink hover:text-paint-red">{str(t, "login")}</Link>
+              <Link to="/register" className="hidden min-h-10 items-center rounded-full bg-paint-red px-5 text-[15px] font-bold text-cream hover:bg-paint-red-hover sm:inline-flex">{str(t, "register")}</Link>
             </>
           ) : null}
         </div>
@@ -61,30 +64,35 @@ function PublicTopbar() {
   );
 }
 
+/** Navy footer. The landing page ends on its own hood fringe, so it sits flush there; elsewhere it opens with the diamond band. */
 function Footer() {
+  const { pathname } = useLocation();
+  const flush = pathname === "/";
+  const t = useSiteText();
   const year = new Date().getFullYear().toLocaleString("bn-BD", { useGrouping: false });
   return (
-    <footer className="mt-24 border-t border-line bg-white">
+    <footer className={`bg-primary text-[#cfd8ea] ${flush ? "" : "mt-24"}`}>
+      {!flush && <Band />}
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
-        <div className="flex flex-col items-start gap-4">
-          <LogoFull className="h-28 w-auto" />
-          <p className="max-w-xs text-sm text-muted">বাংলাদেশের বিশ্বস্ত স্থানীয় সেবা খুঁজুন, বুক করুন — আর আপনার ব্যবসাকে ডিজিটালভাবে এগিয়ে নিন।</p>
+        <div className="flex flex-col items-start gap-3">
+          <span className="font-painted text-[28px] leading-none text-marigold">ServiceHub BD</span>
+          <p className="max-w-xs text-sm whitespace-pre-line">{str(t, "footerAbout")}</p>
         </div>
         {[
-          { title: "গ্রাহকের জন্য", links: [["সেবা খুঁজুন", "/search"], ["আমার বুকিং", "/me/bookings"], ["কীভাবে কাজ করে", "/#how"]] },
-          { title: "ব্যবসার জন্য", links: [["ব্যবসা পেজ তৈরি", "/business/new"], ["প্ল্যান ও মূল্য", "/pricing"], ["যাচাইকরণ", "/#how"], ["লগইন", "/login"]] },
+          { title: str(t, "footerCustomers"), links: [["সেবা খুঁজুন", "/search"], ["আমার বুকিং", "/me/bookings"], ["সংরক্ষিত", "/me/saved"]] },
+          { title: str(t, "footerBusiness"), links: [["ব্যবসা পেজ খুলুন", "/business/new"], ["প্ল্যান ও দাম", "/pricing"], ["লগইন", "/login"]] },
           { title: "ServiceHub BD", links: [["গোপনীয়তা নীতি", "#"], ["শর্তাবলি", "#"], ["যোগাযোগ", "#"]] },
         ].map((col) => (
           <nav key={col.title} aria-label={col.title} className="flex flex-col gap-2.5 text-sm">
-            <span className="font-display text-[15px] font-semibold text-ink">{col.title}</span>
-            {col.links.map(([label, to]) => <Link key={label} to={to} className="text-muted hover:text-primary">{label}</Link>)}
+            <span className="font-display text-base font-bold text-cream">{col.title}</span>
+            {col.links.map(([label, to]) => <Link key={label} to={to} className="hover:text-marigold">{label}</Link>)}
           </nav>
         ))}
       </div>
-      <div className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-5 text-xs text-subtle sm:px-6">
-          <span>© {year} ServiceHub BD · সর্বস্বত্ব সংরক্ষিত</span>
-          <span className="font-num tracking-[0.2em]">DISCOVER · BOOK · CONNECT · GROW</span>
+      <div className="border-t border-white/10">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-5 text-xs sm:px-6">
+          <span>© {year} {str(t, "footerCopyright")}</span>
+          <span>{str(t, "footerTagline")}</span>
         </div>
       </div>
     </footer>
@@ -122,11 +130,11 @@ export function CustomerLayout({ wide = false }: { wide?: boolean }) {
     <>
       <SideNav items={CUSTOMER_NAV} header={null} />
       <div className="px-3 pb-4">
-        <div className="bg-brand relative flex flex-col gap-1.5 overflow-hidden rounded-lg p-4 text-sm text-white shadow-card">
-          <div className="absolute -right-6 -bottom-8 size-24 rounded-full bg-brand-lime/30" aria-hidden />
-          <span className="font-display text-base font-semibold">আপনার কি ব্যবসা আছে?</span>
-          <span className="text-blue-100">একই অ্যাকাউন্ট থেকে ব্যবসা পেজ তৈরি করুন</span>
-          <Link to="/business/new" className="relative mt-2 inline-flex min-h-9 items-center justify-center rounded-md bg-white px-3 font-semibold text-brand-navy hover:bg-blue-50">ব্যবসা পেজ তৈরি করুন →</Link>
+        <div className="relative flex flex-col gap-1.5 overflow-hidden rounded-lg bg-primary p-4 text-sm text-cream">
+          <PetalPattern className="opacity-[0.08]" />
+          <span className="relative font-display text-base font-bold">আপনার কি ব্যবসা আছে?</span>
+          <span className="relative text-[#cfd8ea]">একই অ্যাকাউন্ট থেকে ব্যবসার ডিজিটাল সাইনবোর্ড খুলুন।</span>
+          <Link to="/business/new" className="relative mt-2 inline-flex min-h-9 items-center justify-center rounded-full bg-marigold px-3 font-bold text-ink hover:bg-cream">ব্যবসা পেজ খুলুন</Link>
         </div>
       </div>
     </>
@@ -286,6 +294,8 @@ const PLATFORM_NAV: Record<"moderation" | "inspection" | "administration", NavIt
     { to: "/admin/users", label: "ব্যবহারকারী", icon: Users },
     { to: "/admin/roles", label: "ভূমিকা ও অনুমতি", icon: ShieldCheck },
     { to: "/admin/billing", label: "সাবস্ক্রিপশন ও পেমেন্ট", icon: CreditCard },
+    { to: "/admin/homepage", label: "হোমপেজ সম্পাদনা", icon: LayoutTemplate, permission: "site_content.manage" },
+    { to: "/admin/categories", label: "ক্যাটাগরি", icon: Tags, permission: "categories.manage" },
     { to: "/admin/audit", label: "অডিট লগ", icon: ScrollText },
   ],
 };
@@ -295,10 +305,12 @@ const PLATFORM_TITLE = { moderation: "মডারেশন", inspection: "প�
 export function PlatformLayout({ type }: { type: "moderation" | "inspection" | "administration" }) {
   const { workspaces, status } = useAuth();
   const allowed = workspaces.some((w) => w.type === type);
+  // Merge permissions across the person's workspaces of this type, so items they can't use are hidden.
+  const permissions = workspaces.filter((w) => w.type === type).flatMap((w) => w.permissions);
   const header = <div className="mt-1 mb-3 rounded-lg border border-line bg-bg px-3 py-2.5 font-display text-[15px] font-semibold">{PLATFORM_TITLE[type]}</div>;
   return (
     <Shell
-      sidebar={<SideNav items={PLATFORM_NAV[type]} header={header} />}
+      sidebar={<SideNav items={PLATFORM_NAV[type]} permissions={permissions} header={header} />}
       topbar={<div className="ml-auto flex gap-2"><WorkspaceSwitcher current={{ type: type as WorkspaceType }} /></div>}
     >
       {status === "authenticated" && workspaces.length > 0 && !allowed

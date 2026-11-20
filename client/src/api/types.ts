@@ -92,6 +92,21 @@ export interface Category {
   children: Category[];
 }
 
+/** Admin view of a category: every status, with how much uses it. */
+export interface AdminCategory {
+  id: number;
+  parentId: number | null;
+  nameBn: string;
+  nameEn: string;
+  slug: string;
+  icon: string | null;
+  sortOrder: number;
+  status: RecordStatus;
+  businessCount: number;
+  serviceCount: number;
+  childCount: number;
+}
+
 // ---------- businesses ----------
 export type BusinessStatus = "draft" | "published" | "suspended" | "deactivated";
 export type PriceType = "fixed" | "starting_from" | "contact_for_price" | "range";

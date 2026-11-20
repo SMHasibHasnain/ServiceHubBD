@@ -2,42 +2,57 @@
 
 /* ServiceHub BD brand tokens — sampled from the logo (navy pin, blue panel, green "Hub"). */
 @theme {
-  --font-sans: "Inter", "Noto Sans Bengali", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Anek Bangla", "Inter", "Noto Sans Bengali", ui-sans-serif, sans-serif;
-  --font-num: "Inter", "Noto Sans Bengali", ui-sans-serif, sans-serif;
+  /* Rickshaw-art direction: deep navy, painted red, marigold, leaf green on warm cream. */
+  --font-sans: "Hind Siliguri", "Noto Sans Bengali", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Anek Bangla", "Hind Siliguri", "Noto Sans Bengali", ui-sans-serif, sans-serif;
+  --font-painted: "Galada", "Anek Bangla", cursive;
+  --font-num: "Hind Siliguri", "Noto Sans Bengali", ui-sans-serif, sans-serif;
 
-  --color-brand-navy: #0d3169;
+  --color-brand-navy: #0b2350;
   --color-brand-blue: #1f62c9;
-  --color-brand-green: #3f8f24;
+  --color-brand-green: #2e7d4f;
   --color-brand-lime: #81b83a;
   --color-brand-teal: #2a8fb5;
 
-  --color-primary: #1f62c9;
-  --color-primary-hover: #164b98;
-  --color-primary-light: #eaf1fc;
-  --color-secondary: #3f8f24;
-  --color-secondary-light: #eff7e8;
-  --color-success: #2f7d1c;
+  /* Rickshaw paint colours (decoration and public-page accents). */
+  --color-paint-red: #c4373f;
+  --color-paint-red-hover: #a92d35;
+  --color-marigold: #e9b24a;
+  --color-leaf: #2f7f55;
+  --color-rose: #d4607f;
+  --color-cream: #fbf3e2;
+  --color-paper: #fffaf0;
+  --color-sand: #e5d4b0;
+  --color-sand-deep: #f5ead3;
+  --color-marigold-soft: #f6e3b4;
+  --color-night: #06142e;
+
+  --color-primary: #0b2350;
+  --color-primary-hover: #163a7a;
+  --color-primary-light: #e8edf6;
+  --color-secondary: #2e7d4f;
+  --color-secondary-light: #eaf4ec;
+  --color-success: #2e7d4f;
   --color-warning: #b45309;
   --color-danger: #b91c1c;
   --color-info: #1f62c9;
-  --color-bg: #f7f8fb;
+  --color-bg: #faf6ee;
   --color-surface: #ffffff;
-  --color-line: #e5e7ee;
-  --color-ink: #0f1b33;
-  --color-muted: #4b5568;
-  --color-subtle: #6b7385;
-  --color-disabled: #e5e7ee;
+  --color-line: #ebe2cf;
+  --color-ink: #17192b;
+  --color-muted: #574f42;
+  --color-subtle: #6c6555;
+  --color-disabled: #ebe2cf;
 
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 20px;
 
-  --shadow-soft: 0 1px 2px rgb(13 49 105 / 0.05);
-  --shadow-card: 0 1px 2px rgb(13 49 105 / 0.04), 0 4px 16px -4px rgb(13 49 105 / 0.08);
-  --shadow-lift: 0 2px 4px rgb(13 49 105 / 0.04), 0 16px 32px -12px rgb(13 49 105 / 0.18);
-  --shadow-pop: 0 12px 40px -8px rgb(13 49 105 / 0.22), 0 0 0 1px rgb(13 49 105 / 0.05);
+  --shadow-soft: 0 1px 2px rgb(23 25 43 / 0.05);
+  --shadow-card: 0 1px 2px rgb(23 25 43 / 0.04), 0 4px 16px -4px rgb(23 25 43 / 0.08);
+  --shadow-lift: 0 2px 4px rgb(23 25 43 / 0.04), 0 16px 32px -12px rgb(23 25 43 / 0.18);
+  --shadow-pop: 0 12px 40px -8px rgb(23 25 43 / 0.22), 0 0 0 1px rgb(23 25 43 / 0.05);
 }
 
 @layer base {
@@ -65,7 +80,7 @@
     cursor: pointer;
   }
   ::selection {
-    background: #cfe0fa;
+    background: #f9dc8c;
   }
 }
 
@@ -85,36 +100,39 @@
   .label {
     @apply flex flex-col gap-1.5 text-sm font-medium;
   }
-  /* Die-cut sticker: white border, soft drop shadow, slight tilt. */
-  .sticker {
-    @apply inline-flex items-center gap-1.5 rounded-full border-[3px] border-white bg-surface px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap shadow-lift;
+  /* Hand-painted lettering: layered offset shadows like a rickshaw sign. */
+  .painted {
+    font-family: var(--font-painted);
+    font-weight: 400;
+    text-shadow: 3px 3px 0 var(--color-paint-red), 6px 6px 0 var(--color-night);
   }
-  .text-brand-gradient {
-    background: linear-gradient(100deg, var(--color-brand-blue) 10%, var(--color-brand-teal) 50%, var(--color-brand-green) 90%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  .painted-soft {
+    font-family: var(--font-painted);
+    font-weight: 400;
+    text-shadow: 2px 2px 0 var(--color-cream);
   }
-  .bg-hero {
-    background:
-      radial-gradient(60% 70% at 85% 10%, rgb(31 98 201 / 0.14), transparent 70%),
-      radial-gradient(45% 55% at 5% 90%, rgb(129 184 58 / 0.16), transparent 70%),
-      linear-gradient(180deg, #ffffff, #f4f7fd);
+  /* Signboard card: cream panel, ink outline, hard coloured offset shadow. */
+  .signboard {
+    @apply flex flex-col overflow-hidden border-[2.5px] border-ink bg-paper transition duration-200;
+    box-shadow: 6px 6px 0 var(--signboard-shadow, var(--color-primary));
+  }
+  .signboard:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0 var(--signboard-shadow, var(--color-primary));
   }
   .bg-brand {
-    background: linear-gradient(135deg, #0d3169 0%, #164b98 55%, #1f62c9 100%);
-  }
-  .bg-dots {
-    background-image: radial-gradient(rgb(13 49 105 / 0.08) 1px, transparent 1px);
-    background-size: 18px 18px;
+    background: var(--color-primary);
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .float-slow { animation: float 6s ease-in-out infinite; }
-  .float-slower { animation: float 8s ease-in-out infinite reverse; }
+/* Hero signboard swapping to the next business. */
+@keyframes sign-swap {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
 }
-@keyframes float {
-  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
-  50% { transform: translateY(-8px) rotate(var(--tilt, 0deg)); }
+.sign-swap { animation: sign-swap 0.45s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .signboard, .signboard:hover { transition: none; transform: none; }
+  .sign-swap { animation: none; }
 }
