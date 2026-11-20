@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BadgeCheck, Pause, Play, Search } from "lucide-react";
 import { api } from "../../api/client";
 import type { BusinessCard, Category, Paged, Zone } from "../../api/types";
-import { Awning, Band, CategoryTile, CoverArt, Fringe, PetalPattern, Rosette, RosetteDivider, initialOf, paintFor } from "../../components/brand";
+import { Awning, Band, CategoryTile, CoverArt, Fringe, PetalPattern, Rosette, RosetteDivider, initialFont, initialOf, paintFor } from "../../components/brand";
 import { BusinessCardView, useCategories, useZones } from "../../components/shared";
 import { Skeleton, Stars } from "../../components/ui";
 import { bn, taka } from "../../lib/format";
@@ -294,7 +294,7 @@ function Testimonials({ d }: { d: Data }) {
                 <span aria-hidden className="h-6 font-painted text-6xl leading-none" style={{ color: p.bg }}>“</span>
                 <blockquote className="text-[17px] leading-relaxed whitespace-pre-line text-ink">{str(t, "quote")}</blockquote>
                 <figcaption className="flex items-center gap-3 border-t border-sand pt-4">
-                  <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full font-painted text-xl leading-none" style={{ background: p.bg, color: p.fg }}>
+                  <span aria-hidden className={`flex size-11 shrink-0 items-center justify-center rounded-full text-xl leading-none ${initialFont(initialOf(str(t, "name")))}`} style={{ background: p.bg, color: p.fg }}>
                     <span className="translate-y-[0.06em]">{initialOf(str(t, "name"))}</span>
                   </span>
                   <span className="min-w-0 text-sm">

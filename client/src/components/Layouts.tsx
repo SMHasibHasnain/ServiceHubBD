@@ -75,7 +75,7 @@ function Footer() {
       {!flush && <Band />}
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="flex flex-col items-start gap-3">
-          <span className="font-painted text-[28px] leading-none text-marigold">ServiceHub BD</span>
+          <span className="font-display text-[28px] leading-none font-extrabold text-marigold">ServiceHub BD</span>
           <p className="max-w-xs text-sm whitespace-pre-line">{str(t, "footerAbout")}</p>
         </div>
         {[
@@ -101,7 +101,7 @@ function Footer() {
 
 export function PublicLayout() {
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-dvh flex-col bg-cream">
       <PublicTopbar />
       <main className="flex-1"><Suspense fallback={<PageLoading />}><Outlet /></Suspense></main>
       <Footer />

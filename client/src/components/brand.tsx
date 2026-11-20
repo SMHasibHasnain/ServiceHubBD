@@ -173,11 +173,17 @@ export function initialOf(name: string) {
   return [...text][0];
 }
 
+/**
+ * Font for a single initial: Galada for Bangla (hand-painted look); Galada has no Latin glyphs loaded,
+ * so a Latin initial uses the display face instead of falling back to a browser serif.
+ */
+export const initialFont = (ch: string) => (/^[\u0980-\u09FF]/.test(ch) ? "font-painted" : "font-display font-extrabold");
+
 /** Category mark: the name's initial, hand-lettered in a painted roundel. */
 export function CategoryTile({ id, name, className = "size-14 text-[28px]" }: { id: number; name: string; className?: string }) {
   const p = paintFor(id);
   return (
-    <span aria-hidden className={`flex shrink-0 items-center justify-center rounded-full font-painted leading-none ${className}`}
+    <span aria-hidden className={`flex shrink-0 items-center justify-center rounded-full leading-none ${initialFont(initialOf(name))} ${className}`}
       style={{ background: p.bg, color: p.fg, boxShadow: `inset 0 0 0 4px ${PAINT.cream}, 0 0 0 2px ${p.bg}` }}>
       <span className="translate-y-[0.06em]">{initialOf(name)}</span>
     </span>
@@ -198,7 +204,7 @@ export function CoverArt({ categoryId, className = "" }: { categoryId?: number; 
     <div className={`relative flex items-center justify-center overflow-hidden ${className}`} style={{ background: p.bg }} aria-hidden>
       <PetalPattern className="opacity-[0.16]" color={p.fg} />
       {category && (
-        <span className="relative flex size-24 items-center justify-center rounded-full font-painted text-5xl leading-none"
+        <span className={`relative flex size-24 items-center justify-center rounded-full text-5xl leading-none ${initialFont(initialOf(category.nameBn))}`}
           style={{ background: PAINT.cream, color: p.bg, boxShadow: `0 0 0 4px ${p.bg}, 0 0 0 7px ${p.fg}` }}>
           <span className="translate-y-[0.06em]">{initialOf(category.nameBn)}</span>
         </span>

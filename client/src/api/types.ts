@@ -281,7 +281,7 @@ export interface Notice extends PublicNotice { isPublished: boolean; updatedAt: 
 export interface Faq { id: Guid | null; question: string; answer: string }
 export interface Highlight { id: Guid | null; iconKey: string; title: string; description: string | null }
 export interface GalleryItem { id: Guid | null; imageUrl: string; caption: string | null }
-export interface PublicTeamMember { name: string; title: string | null; avatarUrl: string | null }
+export interface PublicTeamMember { name: string; title: string | null; avatarUrl: string | null; roleName: string }
 export interface TeamMember { memberId: Guid; name: string; title: string | null; avatarUrl: string | null; roleName: string; showOnProfile: boolean }
 export interface PageSettings {
   themeKey: ThemeKey; headerStyle: HeaderStyle; sections: PageSection[]; notices: Notice[];
