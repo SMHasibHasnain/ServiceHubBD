@@ -93,7 +93,7 @@ export const SECTION_DEFS: Record<SectionType, SectionDef> = {
     defaults: {
       eyebrow: "ঢাকা থেকে কুড়িগ্রাম, পাড়ার সেবা",
       titleLine1: "যেকোনো কাজে,",
-      titleLine2: "ঠিক মানুষটা।",
+      titleLine2: "ঠিক মানুষটা",
       subtitle: "মিস্ত্রি, পার্লার, টিউটর, ফটোগ্রাফার। যাচাই করা, রিভিউ পড়া, দাম আগে থেকে জানা। ফোনে দরদাম ছাড়াই বুক করুন।",
       searchPlaceholder: "এসি মেরামত, মিরপুর",
       searchButton: "খুঁজুন",
@@ -162,7 +162,7 @@ export const SECTION_DEFS: Record<SectionType, SectionDef> = {
       eyebrow: "এই মৌসুমে",
       linkLabel: "সেবাদাতা দেখুন",
       winter: {
-        title: "বিয়ের মৌসুম আর শীত, দুটোই দরজায়।", note: "অগ্রহায়ণ থেকে ফাল্গুন",
+        title: "বিয়ের মৌসুম আর শীত, দুটোই দরজায়", note: "অগ্রহায়ণ থেকে ফাল্গুন",
         picks: [
           { title: "গিজার সার্ভিসিং", body: "কুয়াশা নামার আগে চেক করিয়ে নিন। প্রথম ঠান্ডার সপ্তাহে ভিড় লাগে।", query: "গিজার" },
           { title: "মেহেদি ও ব্রাইডাল মেকআপ", body: "হলুদ আর বিয়ের দিনের জন্য আগে থেকে বুক করুন, বাড়িতে এসে করে দেবে।", query: "মেকআপ" },
@@ -170,7 +170,7 @@ export const SECTION_DEFS: Record<SectionType, SectionDef> = {
         ],
       },
       summer: {
-        title: "গরম পড়ছে, ঠান্ডা রাখুন।", note: "চৈত্র থেকে আষাঢ়",
+        title: "গরম পড়ছে, ঠান্ডা রাখুন", note: "চৈত্র থেকে আষাঢ়",
         picks: [
           { title: "এসি সার্ভিসিং", body: "প্রথম গরমের সপ্তাহে স্লট পাওয়া কঠিন। আগেভাগে গ্যাস আর ফিল্টার দেখিয়ে নিন।", query: "এসি" },
           { title: "ফ্রিজ মেরামত", body: "লোডশেডিংয়ের পর কম্প্রেসর ঝামেলা? বাসায় এসে দেখে যাবে।", query: "ফ্রিজ" },
@@ -178,7 +178,7 @@ export const SECTION_DEFS: Record<SectionType, SectionDef> = {
         ],
       },
       monsoon: {
-        title: "বর্ষায় ঘর রাখুন শুকনো।", note: "শ্রাবণ থেকে কার্তিক",
+        title: "বর্ষায় ঘর রাখুন শুকনো", note: "শ্রাবণ থেকে কার্তিক",
         picks: [
           { title: "ছাদ ও পানির লিক", body: "দেয়ালে স্যাঁতসেঁতে দাগ বড় হওয়ার আগেই সারিয়ে নিন।", query: "লিক" },
           { title: "পোকামাকড় দমন", body: "বর্ষায় তেলাপোকা আর উইপোকা বাড়ে। পরিবারের জন্য নিরাপদ ওষুধে।", query: "পেস্ট কন্ট্রোল" },
@@ -243,7 +243,7 @@ export const SECTION_DEFS: Record<SectionType, SectionDef> = {
     ],
     defaults: {
       titleLine1: "আপনার ব্যবসার",
-      titleLine2: "ডিজিটাল সাইনবোর্ড।",
+      titleLine2: "ডিজিটাল সাইনবোর্ড",
       body: "পেজ খুলতে টাকা লাগে না। ব্যবসা বাড়লে প্ল্যান বেছে নিন।",
       primaryButton: "ব্যবসা পেজ খুলুন",
       secondaryButton: "প্ল্যান ও দাম",
