@@ -4,6 +4,7 @@ using ServiceHub.Api.Common;
 using ServiceHub.Api.Data;
 using ServiceHub.Api.Domain;
 using ServiceHub.Api.Features.Bookings;
+using ServiceHub.Api.Features.Page;
 using ServiceHub.Api.Features.Services;
 
 namespace ServiceHub.Api.Features.Businesses;
@@ -28,19 +29,25 @@ public record BusinessCardDto(Guid Id, string Name, string Slug, string? LogoUrl
 public record PublicHourDto(short DayOfWeek, TimeOnly OpensAt, TimeOnly ClosesAt);
 
 public record ReviewDto(Guid Id, string CustomerName, string ServiceName, short Rating, string? Comment, DateTime CreatedAt,
-    string? ReplyBody, DateTime? RepliedAt);
+    string? ReplyBody, DateTime? RepliedAt, List<string> Photos);
 
 public record PublicBusinessDto(Guid Id, string Name, string Slug, string? Tagline, string? ShortDescription,
     string? Description, string? LogoUrl, string? CoverUrl, int CategoryId, string CategoryName, string? AddressLine,
     string? ZoneName, string? CoverageNote, List<string> Languages, short? EstablishedYear, bool OffersHomeService,
     bool OffersEmergencyService, decimal AvgRating, int ReviewCount, int CompletedBookingCount, int? AvgResponseMinutes,
-    string? WebsiteUrl, string? FacebookUrl, string? CancellationPolicy, List<PublicHourDto> Hours,
-    List<ServiceDto> Services, Dictionary<short, int> RatingDistribution, List<ReviewDto> LatestReviews);
+    string? CancellationPolicy, List<PublicHourDto> Hours,
+    List<ServiceDto> Services, Dictionary<short, int> RatingDistribution, List<ReviewDto> LatestReviews,
+    string ThemeKey, string HeaderStyle, List<string> Sections, List<PublicNoticeDto> Notices, List<FaqDto> Faqs,
+    List<HighlightDto> Highlights, List<GalleryItemDto> Gallery, List<PublicTeamMemberDto> Team, bool IsVerified);
+
+public record PublicNoticeDto(Guid Id, string Title, string Body, bool IsPinned, DateTime CreatedAt, DateTime? ExpiresAt);
+
+public record PublicTeamMemberDto(string Name, string? Title, string? AvatarUrl);
 
 /// <summary>Guest-accessible discovery endpoints. Only published (verified) businesses are visible.</summary>
 [ApiController]
 [Route("api/public/businesses")]
-public class PublicController(AppDbContext db, AvailabilityService availability) : ControllerBase
+public class PublicController(AppDbContext db, AvailabilityService availability, PublicProfileBuilder profiles) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<PagedResult<BusinessCardDto>>> Search([FromQuery] SearchQuery query)
@@ -91,29 +98,9 @@ public class PublicController(AppDbContext db, AvailabilityService availability)
     }
 
     [HttpGet("{slug}")]
-    public async Task<ActionResult<PublicBusinessDto>> Profile(string slug)
-    {
-        var b = await db.Businesses.AsNoTracking()
-            .Include(x => x.Category).Include(x => x.Zone).Include(x => x.Hours).Include(x => x.BookingSettings)
-            .Include(x => x.Services.Where(s => s.Status == RecordStatus.Active)).ThenInclude(s => s.BookingFields)
-            .FirstOrDefaultAsync(x => x.Slug == slug && x.Status == BusinessStatus.Published)
-            ?? throw new NotFoundException("ব্যবসাটি পাওয়া যায়নি।", "business_not_found");
-
-        var distribution = await db.Reviews.Where(r => r.BusinessId == b.Id && r.Status == ReviewStatus.Published)
-            .GroupBy(r => r.Rating).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
-        for (short s = 1; s <= 5; s++) distribution.TryAdd(s, 0);
-
-        var services = b.Services.OrderByDescending(s => s.IsFeatured).ThenBy(s => s.FeaturedOrder).ThenBy(s => s.Name)
-            .Select(s => ServicesController.ToDto(s, includeInternal: false)).ToList();
-
-        return new PublicBusinessDto(b.Id, b.Name, b.Slug, b.Tagline, b.ShortDescription, b.Description, b.LogoUrl,
-            b.CoverUrl, b.CategoryId, b.Category.NameBn, b.AddressLine, b.Zone?.NameBn, b.CoverageNote, b.Languages,
-            b.EstablishedYear, b.OffersHomeService, b.OffersEmergencyService, b.AvgRating, b.ReviewCount,
-            b.CompletedBookingCount, b.AvgResponseMinutes, b.WebsiteUrl, b.FacebookUrl, b.BookingSettings?.CancellationPolicy,
-            b.Hours.OrderBy(h => h.DayOfWeek).ThenBy(h => h.OpensAt).Select(h => new PublicHourDto(h.DayOfWeek, h.OpensAt, h.ClosesAt)).ToList(),
-            services, distribution.OrderByDescending(kv => kv.Key).ToDictionary(kv => kv.Key, kv => kv.Value),
-            await ReviewsQuery(b.Id).Take(5).ToListAsync());
-    }
+    public async Task<ActionResult<PublicBusinessDto>> Profile(string slug) =>
+        await profiles.BuildAsync(x => x.Slug == slug && x.Status == BusinessStatus.Published)
+        ?? throw new NotFoundException("ব্যবসাটি পাওয়া যায়নি।", "business_not_found");
 
     [HttpGet("{id:guid}/reviews")]
     public async Task<ActionResult<PagedResult<ReviewDto>>> Reviews(Guid id, [FromQuery] PageQuery paging, [FromQuery] short? rating)
@@ -121,7 +108,7 @@ public class PublicController(AppDbContext db, AvailabilityService availability)
         var q = db.Reviews.Where(r => r.BusinessId == id && r.Status == ReviewStatus.Published);
         if (rating is not null) q = q.Where(r => r.Rating == rating);
         var total = await q.CountAsync();
-        var items = await ReviewsQuery(id, rating).Skip(paging.Skip).Take(paging.SafeSize).ToListAsync();
+        var items = await profiles.ReviewsQuery(id, rating).Skip(paging.Skip).Take(paging.SafeSize).ToListAsync();
         return new PagedResult<ReviewDto>(items, paging.SafePage, paging.SafeSize, total);
     }
 
@@ -133,10 +120,4 @@ public class PublicController(AppDbContext db, AvailabilityService availability)
         return await availability.GetAsync(id, serviceId, date);
     }
 
-    private IQueryable<ReviewDto> ReviewsQuery(Guid businessId, short? rating = null) =>
-        db.Reviews.AsNoTracking()
-            .Where(r => r.BusinessId == businessId && r.Status == ReviewStatus.Published && (rating == null || r.Rating == rating))
-            .OrderByDescending(r => r.CreatedAt)
-            .Select(r => new ReviewDto(r.Id, r.Customer.FullName, r.Booking.ServiceName, r.Rating, r.Comment, r.CreatedAt,
-                r.Reply != null ? r.Reply.Body : null, r.Reply != null ? r.Reply.CreatedAt : null));
 }
