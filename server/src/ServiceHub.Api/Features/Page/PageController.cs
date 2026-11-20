@@ -54,12 +54,12 @@ public record UploadResult(string Url);
 [Route("api/businesses/{businessId:guid}")]
 public class PageController(AppDbContext db, ICurrentUser me, AccessService access, AuditLogger audit,
     EntitlementService plans, IFileStorage storage, IOptions<StorageOptions> storageOptions,
-    Businesses.PublicProfileBuilder profiles, UploadCleanup cleanup, Notifier notifier) : ControllerBase
+    Businesses.PublicProfileBuilder profiles, UploadCleanup cleanup, Notifier notifier, PageDefaults defaults) : ControllerBase
 {
     [HttpGet("page")]
     public async Task<ActionResult<PageDto>> Get(Guid businessId)
     {
-        await access.RequireBusinessAsync(businessId, P.BusinessView);
+        await access.RequireBusinessOrStaffAsync(businessId, P.BusinessView);
         return await LoadAsync(businessId);
     }
 
@@ -70,14 +70,14 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpGet("page/preview")]
     public async Task<ActionResult<Businesses.PublicBusinessDto>> Preview(Guid businessId)
     {
-        await access.RequireBusinessAsync(businessId, P.BusinessView);
+        await access.RequireBusinessOrStaffAsync(businessId, P.BusinessView);
         return (await profiles.BuildAsync(x => x.Id == businessId))!;
     }
 
     [HttpPut("page/appearance")]
     public async Task<ActionResult<PageDto>> SetAppearance(Guid businessId, AppearanceRequest req)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.BusinessUpdate);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.BusinessUpdate);
         if (!PageCatalog.Themes.Contains(req.ThemeKey) || !PageCatalog.HeaderStyles.Contains(req.HeaderStyle))
             throw new BadRequestException("থিম বা হেডারের ধরনটি সঠিক নয়।", "invalid_theme");
         var b = await db.Businesses.FirstAsync(x => x.Id == businessId);
@@ -95,7 +95,7 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpPut("page/layout")]
     public async Task<ActionResult<PageDto>> SetLayout(Guid businessId, LayoutRequest req)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.BusinessUpdate);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.BusinessUpdate);
         foreach (var s in req.Sections)
         {
             if (!PageCatalog.DefaultOrder.Contains(s.Key))
@@ -105,7 +105,7 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
         }
         var b = await db.Businesses.FirstAsync(x => x.Id == businessId);
         var next = PageCatalog.Normalize(req.Sections);
-        var current = PageCatalog.Normalize(b.PageLayout);
+        var current = (await defaults.EffectiveAsync(b)).Layout;
         if (!next.Select(s => s.Key).SequenceEqual(current.Select(s => s.Key)))
             await plans.RequireFeatureAsync(businessId, E.PageLayout);
         b.PageLayout = next;
@@ -119,7 +119,7 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpPost("page/notices")]
     public async Task<ActionResult<NoticeDto>> AddNotice(Guid businessId, NoticeRequest req)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.BusinessUpdate);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.BusinessUpdate);
         var notice = new BusinessNotice { BusinessId = businessId, CreatedBy = me.RequireId() };
         await ApplyNoticeAsync(notice, req, wasLive: false);
         db.BusinessNotices.Add(notice);
@@ -132,7 +132,7 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpPut("page/notices/{noticeId:guid}")]
     public async Task<ActionResult<NoticeDto>> UpdateNotice(Guid businessId, Guid noticeId, NoticeRequest req)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.BusinessUpdate);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.BusinessUpdate);
         var notice = await FindNoticeAsync(businessId, noticeId);
         await ApplyNoticeAsync(notice, req, wasLive: IsLive(notice, DateTime.UtcNow));
         Audit("notice.update", businessId, member, notice.Id);
@@ -144,7 +144,7 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpDelete("page/notices/{noticeId:guid}")]
     public async Task<IActionResult> DeleteNotice(Guid businessId, Guid noticeId)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.BusinessUpdate);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.BusinessUpdate);
         db.BusinessNotices.Remove(await FindNoticeAsync(businessId, noticeId));
         Audit("notice.delete", businessId, member, noticeId);
         await db.SaveChangesAsync();
@@ -156,7 +156,7 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpPut("page/faqs")]
     public async Task<ActionResult<PageDto>> SetFaqs(Guid businessId, List<FaqDto> faqs)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.BusinessUpdate);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.BusinessUpdate);
         if (faqs.Count > PageCatalog.MaxFaqs)
             throw new BadRequestException($"সর্বোচ্চ {EntitlementService.Bn(PageCatalog.MaxFaqs)}টি প্রশ্ন রাখা যায়।", "too_many_faqs");
         ContactGuard.Ensure(faqs.SelectMany(f => new[] { f.Question, f.Answer }).ToArray());
@@ -173,7 +173,7 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpPut("page/highlights")]
     public async Task<ActionResult<PageDto>> SetHighlights(Guid businessId, List<HighlightDto> highlights)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.BusinessUpdate);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.BusinessUpdate);
         if (highlights.Count > PageCatalog.MaxHighlights)
             throw new BadRequestException($"সর্বোচ্চ {EntitlementService.Bn(PageCatalog.MaxHighlights)}টি বিশেষত্ব রাখা যায়।", "too_many_highlights");
         if (highlights.Any(h => !PageCatalog.HighlightIcons.Contains(h.IconKey)))
@@ -193,7 +193,7 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpPut("page/gallery")]
     public async Task<ActionResult<PageDto>> SetGallery(Guid businessId, List<GalleryItemDto> items)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.BusinessUpdate);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.BusinessUpdate);
         var existing = await db.GalleryItems.Where(g => g.BusinessId == businessId).ToListAsync();
         // Over-limit galleries kept from a bigger plan stay editable; they just can't grow.
         if (items.Count > existing.Count)
@@ -216,7 +216,7 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpPut("page/team")]
     public async Task<ActionResult<PageDto>> SetTeam(Guid businessId, TeamRequest req)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.BusinessUpdate);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.BusinessUpdate);
         var members = await db.BusinessMembers.Where(m => m.BusinessId == businessId && m.Status == MemberStatus.Active).ToListAsync();
         if (req.MemberIds.Any(id => members.All(m => m.Id != id)))
             throw new BadRequestException("সদস্যটি পাওয়া যায়নি।", "member_not_found");
@@ -239,7 +239,7 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
     public async Task<ActionResult<UploadResult>> Upload(Guid businessId, CancellationToken ct)
     {
         if (!await access.HasBusinessPermissionAsync(businessId, P.ServicesManage))
-            await access.RequireBusinessAsync(businessId, P.BusinessUpdate);
+            await access.RequireBusinessOrStaffAsync(businessId, P.BusinessUpdate);
         var (url, _) = await storage.SaveAsync(Request, Folder(businessId), storageOptions.Value.MaxImageBytes, ct);
         return new UploadResult(url);
     }
@@ -289,7 +289,8 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
         if (notice.NotifiedAt is not null || !IsLive(notice, DateTime.UtcNow)) return;
         var b = await db.Businesses.AsNoTracking().Where(x => x.Id == notice.BusinessId)
             .Select(x => new { x.Name, x.Slug, x.Status, x.PageLayout }).FirstAsync();
-        if (b.Status != BusinessStatus.Published || !PageCatalog.IsVisible(PageCatalog.Normalize(b.PageLayout), PageCatalog.Notices)) return;
+        var layout = (await defaults.EffectiveAsync(null, null, b.PageLayout)).Layout;
+        if (b.Status != BusinessStatus.Published || !PageCatalog.IsVisible(layout, PageCatalog.Notices)) return;
 
         var members = db.BusinessMembers.Where(m => m.BusinessId == notice.BusinessId).Select(m => m.UserId);
         var followers = await db.Favourites.Where(f => f.BusinessId == notice.BusinessId && !members.Contains(f.UserId))
@@ -304,9 +305,9 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
         await db.BusinessNotices.FirstOrDefaultAsync(n => n.Id == noticeId && n.BusinessId == businessId)
         ?? throw new NotFoundException("নোটিশটি পাওয়া যায়নি।", "notice_not_found");
 
-    private void Audit(string what, Guid businessId, BusinessMember member, Guid? entityId = null) =>
+    private void Audit(string what, Guid businessId, BusinessActor member, Guid? entityId = null) =>
         audit.Log($"business.page.{what}", entityId is null ? "business" : "business_notice", entityId ?? businessId,
-            businessId: businessId, scope: RoleScope.Business, roleId: member.RoleId);
+            businessId: businessId, scope: member.Scope, roleId: member.RoleId);
 
     private async Task<PageDto> LoadAsync(Guid businessId)
     {
@@ -323,7 +324,8 @@ public class PageController(AppDbContext db, ICurrentUser me, AccessService acce
         var team = await db.BusinessMembers.AsNoTracking().Where(m => m.BusinessId == businessId && m.Status == MemberStatus.Active)
             .OrderByDescending(m => m.Role.Rank).ThenBy(m => m.JoinedAt)
             .Select(m => new TeamMemberDto(m.Id, m.User.FullName, m.Title, m.User.AvatarUrl, m.Role.NameBn, m.ShowOnProfile)).ToListAsync();
-        return new PageDto(b.ThemeKey ?? "blue", b.HeaderStyle ?? "cover", PageCatalog.Normalize(b.PageLayout),
+        var (theme, header, sections) = await defaults.EffectiveAsync(b);
+        return new PageDto(theme, header, sections,
             notices.Select(n => ToDto(n, now)).ToList(), faqs, highlights, gallery, team);
     }
 }
