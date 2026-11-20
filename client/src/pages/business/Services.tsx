@@ -5,7 +5,7 @@ import { Copy, Package, Pencil, Plus, Trash2 } from "lucide-react";
 import { api } from "../../api/client";
 import type { BookingField, BookingFieldType, PriceType, Service } from "../../api/types";
 import { flattenCategories, useCategories } from "../../components/shared";
-import { Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, useToast } from "../../components/ui";
+import { Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, Pagination, useClientPage, useToast } from "../../components/ui";
 import { bn, duration, priceLabel } from "../../lib/format";
 import { useBiz } from "./Dashboard";
 import { ImageField } from "../../components/ImageUpload";
@@ -47,6 +47,8 @@ export default function Services() {
     queryFn: () => api.get<Service[]>(`/api/businesses/${biz!.id}/services`),
     enabled: !!biz,
   });
+  // The API returns every service (other screens need them all); this list shows them a page at a time.
+  const paged = useClientPage(list.data, null, 12);
   const invalidate = () => qc.invalidateQueries({ queryKey: ["business", biz?.id, "services"] });
   const duplicate = useMutation({ mutationFn: (id: string) => api.post(`/api/businesses/${biz!.id}/services/${id}/duplicate`), onSuccess: () => { invalidate(); toast("সেবার একটি কপি তৈরি হয়েছে (নিষ্ক্রিয়)।"); } });
   const remove = useMutation({
@@ -66,8 +68,9 @@ export default function Services() {
       )}
       <ErrorBox error={list.error ?? duplicate.error} />
       {list.isLoading ? <LoadingList /> : list.data?.length ? (
+        <>
         <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {list.data.map((s) => (
+          {paged.items.map((s) => (
             <li key={s.id} className="card flex flex-col gap-3 p-5">
               <div className="flex items-start justify-between gap-2">
                 {s.imageUrl && <img src={s.imageUrl} alt="" className="size-12 shrink-0 rounded-md object-cover" />}
@@ -90,8 +93,10 @@ export default function Services() {
             </li>
           ))}
         </ul>
+        <Pagination page={paged.page} total={paged.total} pageSize={paged.pageSize} onChange={paged.setPage} label="সেবার পাতা" />
+        </>
       ) : (
-        <EmptyState icon={<Package className="size-8" aria-hidden />} title="এখনও কোনো সেবা যোগ করা হয়নি।"
+        <EmptyState icon={<Package className="size-8" aria-hidden />} title="এখনও কোনো সেবা যোগ করা হয়নি"
           action={canManage && biz && <Button onClick={() => setDraft(blank(biz.categoryId))}>নতুন সেবা যোগ করুন</Button>} />
       )}
 
