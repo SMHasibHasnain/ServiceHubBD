@@ -165,6 +165,8 @@ export interface BusinessDetail {
   bookingSettings: BookingSettings;
   myRole: string;
   myPermissions: string[];
+  /** Set when platform staff (not a member) opened this business: the platform role that let them in. */
+  staffRole?: string | null;
 }
 
 export interface BookingField {
@@ -643,3 +645,26 @@ export interface AdminSubscription {
   cancelAtPeriodEnd: boolean;
 }
 export interface BillingSummary { mrr: number; activePaid: number; trialing: number; pastDue: number; pendingPayments: number; revenue30d: number; paidByPlan: Record<string, number> }
+
+// ---------- Platform staff across businesses ----------
+
+export interface StaffBusiness {
+  id: Guid; name: string; slug: string; categoryName: string; zoneName: string | null; status: BusinessStatus;
+  verificationStatus: VerificationStatus; ownerName: string; createdAt: IsoDateTime; deletedAt: IsoDateTime | null;
+  lastStaffEditAt: IsoDateTime | null;
+}
+
+export interface StaffAction {
+  id: number; businessId: Guid; businessName: string; actorId: Guid; actorName: string; roleKey: string; roleName: string;
+  summary: string; createdAt: IsoDateTime; undoneAt: IsoDateTime | null; undoneByName: string | null; undoReason: string | null;
+  undoOf: number | null; rowCount: number;
+}
+
+export interface StaffRowChange {
+  entity: string; entityLabel: string; kind: "added" | "removed" | "updated"; title: string | null;
+  fields: { field: string; before: string | null; after: string | null }[];
+}
+
+export interface StaffActionDetail { action: StaffAction; rows: StaffRowChange[] }
+
+export interface PageDefaults { themeKey: ThemeKey; headerStyle: HeaderStyle; sections: PageSection[] }
