@@ -9,6 +9,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": { target: process.env.API_URL ?? "http://localhost:5291", changeOrigin: true },
+      "/uploads": { target: process.env.API_URL ?? "http://localhost:5291", changeOrigin: true },
       "/health": { target: process.env.API_URL ?? "http://localhost:5291", changeOrigin: true },
     },
   },
