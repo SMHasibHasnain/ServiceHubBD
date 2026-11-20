@@ -51,17 +51,6 @@ export function Rosette({ color = PAINT.rose, className = "size-6" }: { color?: 
   return <svg viewBox="0 0 40 40" className={className} aria-hidden><RosetteShape color={color} /></svg>;
 }
 
-/** Thin line – rosette – line, used under section headings. */
-export function RosetteDivider({ color = PAINT.red, className = "" }: { color?: string; className?: string }) {
-  return (
-    <span aria-hidden className={`flex items-center gap-2.5 ${className}`}>
-      <span className="h-0.5 w-14" style={{ background: color }} />
-      <Rosette color={color} className="size-5" />
-      <span className="h-0.5 w-14" style={{ background: color }} />
-    </span>
-  );
-}
-
 /** Diamond strip in the four paint colours, like the trim on a rickshaw hood. */
 export function Band({ className = "" }: { className?: string }) {
   const id = useId();
@@ -196,19 +185,16 @@ function useCategory(categoryId?: number) {
   return all.find((c) => c.id === categoryId);
 }
 
-/** Painted panel used when a business hasn't uploaded a cover: category colour, flower wallpaper, big initial. */
+/**
+ * Panel used when a business hasn't uploaded a cover: warm sand ground with a faint flower wallpaper and the
+ * category's painted roundel. Kept quiet so a grid of photo-less cards doesn't turn into blocks of paint.
+ */
 export function CoverArt({ categoryId, className = "" }: { categoryId?: number; className?: string }) {
   const category = useCategory(categoryId);
-  const p = paintFor(categoryId);
   return (
-    <div className={`relative flex items-center justify-center overflow-hidden ${className}`} style={{ background: p.bg }} aria-hidden>
-      <PetalPattern className="opacity-[0.16]" color={p.fg} />
-      {category && (
-        <span className={`relative flex size-24 items-center justify-center rounded-full text-5xl leading-none ${initialFont(initialOf(category.nameBn))}`}
-          style={{ background: PAINT.cream, color: p.bg, boxShadow: `0 0 0 4px ${p.bg}, 0 0 0 7px ${p.fg}` }}>
-          <span className="translate-y-[0.06em]">{initialOf(category.nameBn)}</span>
-        </span>
-      )}
+    <div className={`relative flex items-center justify-center overflow-hidden bg-sand-deep ${className}`} aria-hidden>
+      <PetalPattern className="opacity-[0.22]" color="#e5d4b0" />
+      {category && <CategoryTile id={category.id} name={category.nameBn} className="relative size-20 text-[40px]" />}
     </div>
   );
 }
