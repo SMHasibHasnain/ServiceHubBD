@@ -4,7 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { CheckCircle2, Gift, XCircle } from "lucide-react";
 import { api } from "../../api/client";
 import type { AdminPayment, AdminSubscription, BillingCycle, BillingSummary, Paged, PaymentMethod } from "../../api/types";
-import { Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, Segmented, Stat, useToast } from "../../components/ui";
+import { Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PAGE_SIZE, PageHeader, Pagination, Segmented, Stat, usePage, useToast } from "../../components/ui";
 import { METHOD_LABEL, PLAN_STATUS, usePlans } from "../../lib/billing";
 import { bn, dateShort, relative, taka } from "../../lib/format";
 
@@ -20,10 +20,10 @@ export default function AdminBilling() {
       <ErrorBox error={summary.error} />
       <section aria-label="সারসংক্ষেপ" className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat label="মাসিক আয় (MRR)" value={s ? taka(s.mrr) : "—"} note="সক্রিয় পেইড প্ল্যান থেকে" />
-        <Stat label="পেইড ব্যবসা" value={s ? bn(s.activePaid) : "—"} tone="green" note={s ? Object.entries(s.paidByPlan).map(([k, n]) => `${k === "pro" ? "প্রো" : "বিজনেস"} ${bn(n)}`).join(" · ") || "—" : ""} />
-        <Stat label="ট্রায়াল চলছে" value={s ? bn(s.trialing) : "—"} tone="blue" />
-        <Stat label="নবায়ন বাকি" value={s ? bn(s.pastDue) : "—"} tone="amber" />
-        <Stat label="যাচাইয়ের অপেক্ষায়" value={s ? bn(s.pendingPayments) : "—"} tone="red" note={s ? `গত ৩০ দিনে আদায় ${taka(s.revenue30d)}` : ""} />
+        <Stat label="পেইড ব্যবসা" value={s ? bn(s.activePaid) : "—"} note={s ? Object.entries(s.paidByPlan).map(([k, n]) => `${k === "pro" ? "প্রো" : "বিজনেস"} ${bn(n)}`).join(" · ") || "—" : ""} />
+        <Stat label="ট্রায়াল চলছে" value={s ? bn(s.trialing) : "—"} />
+        <Stat label="নবায়ন বাকি" value={s ? bn(s.pastDue) : "—"} />
+        <Stat label="যাচাইয়ের অপেক্ষায়" value={s ? bn(s.pendingPayments) : "—"} note={s ? `গত ৩০ দিনে আদায় ${taka(s.revenue30d)}` : ""} />
       </section>
       <div className="mb-5">
         <Segmented label="বিভাগ" value={tab} onChange={setTab}
@@ -47,9 +47,10 @@ function PaymentsQueue() {
   const [note, setNote] = useState("");
   const toast = useToast();
   const invalidate = useInvalidate();
+  const [page, setPage] = usePage(status);
   const list = useQuery({
-    queryKey: ["admin", "billing", "payments", status],
-    queryFn: () => api.get<Paged<AdminPayment>>("/api/admin/billing/payments", { status, pageSize: 50 }),
+    queryKey: ["admin", "billing", "payments", status, page],
+    queryFn: () => api.get<Paged<AdminPayment>>("/api/admin/billing/payments", { status, page, pageSize: PAGE_SIZE }),
     placeholderData: keepPreviousData,
   });
   const act = useMutation({
@@ -99,6 +100,7 @@ function PaymentsQueue() {
           </table>
         </div>
       )}
+      {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} scrollTop={false} label="পেমেন্টের পাতা" />}
       <Modal open={!!acting} onClose={() => setActing(null)} title={acting?.action === "verify" ? "পেমেন্ট যাচাই করবেন?" : "পেমেন্ট প্রত্যাখ্যান করবেন?"}
         footer={<><Button variant="ghost" onClick={() => setActing(null)}>বাতিল</Button>
           <Button variant={acting?.action === "verify" ? "primary" : "danger"} loading={act.isPending} disabled={acting?.action === "reject" && note.trim().length < 5} onClick={() => act.mutate()}>নিশ্চিত করুন</Button></>}>
@@ -124,9 +126,10 @@ function SubscriptionsTable() {
   const [q, setQ] = useState("");
   const [plan, setPlan] = useState("");
   const [granting, setGranting] = useState<AdminSubscription | null>(null);
+  const [page, setPage] = usePage({ q, plan });
   const list = useQuery({
-    queryKey: ["admin", "billing", "subscriptions", q, plan],
-    queryFn: () => api.get<Paged<AdminSubscription>>("/api/admin/billing/subscriptions", { q: q || undefined, plan: plan || undefined, pageSize: 50 }),
+    queryKey: ["admin", "billing", "subscriptions", q, plan, page],
+    queryFn: () => api.get<Paged<AdminSubscription>>("/api/admin/billing/subscriptions", { q: q || undefined, plan: plan || undefined, page, pageSize: PAGE_SIZE }),
     placeholderData: keepPreviousData,
   });
   return (
@@ -158,9 +161,10 @@ function SubscriptionsTable() {
               ))}
             </tbody>
           </table>
-          {!list.data?.items.length && <p className="p-6 text-center text-sm text-subtle">কোনো ব্যবসা পাওয়া যায়নি।</p>}
+          {!list.data?.items.length && <p className="p-6 text-center text-sm text-subtle">কোনো ব্যবসা পাওয়া যায়নি</p>}
         </div>
       )}
+      {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} scrollTop={false} label="সাবস্ক্রিপশনের পাতা" />}
       {granting && <GrantModal sub={granting} onClose={() => setGranting(null)} />}
     </>
   );
