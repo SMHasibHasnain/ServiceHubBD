@@ -76,6 +76,8 @@ public class EntitlementService(AppDbContext db, IOptions<BillingOptions> option
             E.ServicesMax => ("সেবা", "টি"),
             E.MembersMax => ("টিম সদস্য", " জন"),
             E.BookingFieldsMax => ("প্রশ্ন (প্রতি সেবায়)", "টি"),
+            E.GalleryMax => ("গ্যালারির ছবি", "টি"),
+            E.NoticesMax => ("চালু নোটিশ", "টি"),
             _ => ("আইটেম", "টি"),
         };
         throw new PlanLimitException($"{plan.NameBn} প্ল্যানে সর্বোচ্চ {Bn(limit)}{unit} {noun} রাখা যায়। আরও যোগ করতে প্ল্যান আপগ্রেড করুন।");
@@ -89,6 +91,7 @@ public class EntitlementService(AppDbContext db, IOptions<BillingOptions> option
         {
             E.CrmNotes => "গ্রাহকের নোট, VIP ও ট্যাগ",
             E.AutoConfirm => "বুকিং স্বয়ংক্রিয় নিশ্চিতকরণ",
+            E.PageLayout => "পাবলিক পেজের সেকশনের ক্রম পরিবর্তন",
             _ => "এই সুবিধা",
         };
         throw new PlanLimitException($"{what} {plan.NameBn} প্ল্যানে নেই। প্রো বা বিজনেস প্ল্যানে আপগ্রেড করুন।");
