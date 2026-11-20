@@ -10,6 +10,9 @@ public static class E
     public const string CrmNotes = "crm.notes";
     public const string AutoConfirm = "bookings.auto_confirm";
     public const string PrioritySupport = "support.priority";
+    public const string GalleryMax = "gallery.max";
+    public const string NoticesMax = "notices.max";
+    public const string PageLayout = "page.layout";
 
     public const int Unlimited = -1;
 }
@@ -39,16 +42,19 @@ public static class PlanCatalog
         {
             [E.ServicesMax] = 5, [E.MembersMax] = 2, [E.BookingFieldsMax] = 2, [E.AnalyticsMaxDays] = 7,
             [E.CrmNotes] = 0, [E.AutoConfirm] = 0, [E.PrioritySupport] = 0,
+            [E.GalleryMax] = 6, [E.NoticesMax] = 1, [E.PageLayout] = 0,
         }),
         new(Pro, 2, "প্রো", "Pro", "বাড়তে থাকা ব্যবসার জন্য", 499, 4990, new()
         {
             [E.ServicesMax] = E.Unlimited, [E.MembersMax] = 5, [E.BookingFieldsMax] = 10, [E.AnalyticsMaxDays] = 90,
             [E.CrmNotes] = 1, [E.AutoConfirm] = 1, [E.PrioritySupport] = 0,
+            [E.GalleryMax] = 30, [E.NoticesMax] = 10, [E.PageLayout] = 1,
         }),
         new(BusinessPlan, 3, "বিজনেস", "Business", "বড় টিম ও একাধিক টেকনিশিয়ানের জন্য", 1499, 14990, new()
         {
             [E.ServicesMax] = E.Unlimited, [E.MembersMax] = E.Unlimited, [E.BookingFieldsMax] = E.Unlimited, [E.AnalyticsMaxDays] = 90,
             [E.CrmNotes] = 1, [E.AutoConfirm] = 1, [E.PrioritySupport] = 1,
+            [E.GalleryMax] = 100, [E.NoticesMax] = E.Unlimited, [E.PageLayout] = 1,
         }),
     ];
 
@@ -61,6 +67,9 @@ public static class PlanCatalog
         new(E.AnalyticsMaxDays, "বিশ্লেষণের সময়সীমা", "limit", "দিন"),
         new(E.CrmNotes, "গ্রাহকের নোট, VIP ও ট্যাগ", "switch"),
         new(E.AutoConfirm, "বুকিং স্বয়ংক্রিয় নিশ্চিতকরণ", "switch"),
+        new(E.GalleryMax, "গ্যালারির ছবি", "limit", "টি"),
+        new(E.NoticesMax, "নোটিশ বোর্ডে চালু নোটিশ", "limit", "টি"),
+        new(E.PageLayout, "পাবলিক পেজের সেকশন সাজানো", "switch"),
         new(E.PrioritySupport, "অগ্রাধিকার সাপোর্ট", "switch"),
     ];
 
