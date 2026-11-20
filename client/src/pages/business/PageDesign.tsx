@@ -3,11 +3,11 @@ import { Link, Outlet } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ExternalLink, Eye, EyeOff, ImagePlus, Lock, Megaphone, Pencil, Pin, Plus,
-  RotateCw, Trash2, X,
+  RotateCw, Trash2, X, Image as ImageIcon,
 } from "lucide-react";
 import { api } from "../../api/client";
 import type { Faq, GalleryItem, HeaderStyle, Highlight, Notice, PageSection, PageSettings, ThemeKey } from "../../api/types";
-import { Badge, Button, EmptyState, ErrorBox, LinkButton, LoadingList, Modal, PageHeader, Segmented, Skeleton, useToast } from "../../components/ui";
+import { Badge, Button, EmptyState, ErrorBox, LinkButton, LoadingList, Modal, PageHeader, Pagination, Segmented, Skeleton, useClientPage, useToast } from "../../components/ui";
 import { SectionTabs } from "../../components/SectionTabs";
 import { FilePicker, useImageUpload } from "../../components/ImageUpload";
 import { UNLIMITED, useBusinessPlan } from "../../lib/billing";
@@ -130,6 +130,7 @@ function NoticesTab({ page }: { page: PageSettings }) {
   const toast = useToast();
   const { limit, loaded } = useLimit("notices.max");
   const live = page.notices.filter((n) => n.isLive).length;
+  const notices = useClientPage(page.notices, null, 10);
   const atLimit = loaded && limit !== UNLIMITED && limit !== undefined && live >= limit;
   const visible = page.sections.find((s) => s.key === "notices")?.visible ?? true;
   const layout = useSave<{ sections: PageSection[] }>("page/layout", "put", "");
@@ -166,8 +167,9 @@ function NoticesTab({ page }: { page: PageSettings }) {
         <EmptyState icon={<Megaphone aria-hidden />} title="এখনও কোনো নোটিশ নেই"
           description="অফার, ছুটির খবর, নতুন সেবা বা গুরুত্বপূর্ণ ঘোষণা নোটিশ বোর্ডে দিন। গ্রাহকরা আপনার পেজে দেখবেন।" />
       ) : (
+        <>
         <ul className="flex flex-col gap-3">
-          {page.notices.map((n) => {
+          {notices.items.map((n) => {
             const st = noticeState(n);
             return (
               <li key={n.id} className={`card flex flex-col gap-2 p-5 ${n.isPinned ? "border-primary/40" : ""}`}>
@@ -189,6 +191,8 @@ function NoticesTab({ page }: { page: PageSettings }) {
             );
           })}
         </ul>
+        <Pagination page={notices.page} total={notices.total} pageSize={notices.pageSize} onChange={notices.setPage} label="নোটিশের পাতা" />
+        </>
       )}
 
       {draft && <NoticeEditor draft={draft} setDraft={setDraft} onSaved={() => { refresh(); setDraft(null); }} />}
@@ -271,10 +275,11 @@ function LookTab({ page }: { page: PageSettings }) {
         <div role="radiogroup" aria-label="হেডারের ধরন" className="grid gap-3 sm:grid-cols-2">
           {(Object.keys(HEADER_STYLES) as HeaderStyle[]).map((k) => (
             <button key={k} role="radio" aria-checked={header === k} onClick={() => setHeader(k)}
-              className={`flex flex-col gap-2 rounded-md border p-3 text-left ${header === k ? "border-ink ring-2 ring-ink/10" : "border-line hover:border-zinc-400"}`}>
-              <span className="h-14 w-full rounded" style={k === "color"
-                ? { background: `linear-gradient(135deg, ${THEMES[theme].hover}, ${THEMES[theme].accent})` }
-                : { background: "linear-gradient(135deg,#cbd5e1,#e2e8f0)" }} aria-hidden />
+              className={`flex flex-col gap-2 rounded-md border p-3 text-left transition-colors duration-150 ${header === k ? "border-ink ring-2 ring-ink/10" : "border-line hover:border-zinc-400"}`}>
+              {/* Matches the real header: a solid theme colour, or the cover photo (shown as a neutral photo slot). */}
+              <span className="flex h-14 w-full items-center justify-center rounded text-zinc-400" style={{ background: k === "color" ? THEMES[theme].accent : "var(--color-zinc-200)" }} aria-hidden>
+                {k !== "color" && <ImageIcon className="size-5" />}
+              </span>
               <span className="font-medium">{HEADER_STYLES[k].label}</span>
               <span className="text-sm text-subtle">{HEADER_STYLES[k].hint}</span>
             </button>
@@ -449,13 +454,15 @@ function TeamTab({ page }: { page: PageSettings }) {
   const [shown, setShown] = useState(() => new Set(page.team.filter((m) => m.showOnProfile).map((m) => m.memberId)));
   const save = useSave<{ memberIds: string[] }>("page/team", "put", "টিম সেকশন সংরক্ষিত হয়েছে।");
   const toggle = (id: string) => { const next = new Set(shown); if (next.has(id)) next.delete(id); else next.add(id); setShown(next); };
+  // Ticks are kept across pages; saving sends every selected member.
+  const team = useClientPage(page.team);
   return (
     <section className="card flex flex-col gap-4 p-6">
       <h2 className="text-base font-semibold">পাবলিক পেজে টিম</h2>
       <p className="-mt-2 text-sm text-muted">যাঁদের বাছাই করবেন, পাবলিক পেজে শুধু তাঁদের নাম, পদবি ও ছবি দেখাবে। ফোন নম্বর কখনও দেখাবে না।</p>
       <ErrorBox error={save.error} />
       <ul className="flex flex-col divide-y divide-zinc-100 rounded-md border border-line">
-        {page.team.map((m) => (
+        {team.items.map((m) => (
           <li key={m.memberId}>
             <label className="flex min-h-14 items-center gap-3 px-3">
               <input type="checkbox" className="size-5 accent-primary" checked={shown.has(m.memberId)} onChange={() => toggle(m.memberId)} />
@@ -465,6 +472,7 @@ function TeamTab({ page }: { page: PageSettings }) {
           </li>
         ))}
       </ul>
+      <Pagination page={team.page} total={team.total} pageSize={team.pageSize} onChange={team.setPage} scrollTop={false} label="টিমের পাতা" className="mt-0" />
       <div><Button loading={save.isPending} onClick={() => save.mutate({ memberIds: [...shown] })}>সংরক্ষণ করুন</Button></div>
     </section>
   );
