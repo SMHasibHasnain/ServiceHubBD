@@ -8,6 +8,7 @@ import { flattenCategories, useCategories } from "../../components/shared";
 import { Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, useToast } from "../../components/ui";
 import { bn, duration, priceLabel } from "../../lib/format";
 import { useBiz } from "./Dashboard";
+import { ImageField } from "../../components/ImageUpload";
 
 const FIELD_TYPES: { value: BookingFieldType; label: string }[] = [
   { value: "short_text", label: "ছোট লেখা" }, { value: "long_text", label: "বড় লেখা" }, { value: "select", label: "তালিকা থেকে বাছাই" },
@@ -16,19 +17,19 @@ const FIELD_TYPES: { value: BookingFieldType; label: string }[] = [
 
 type Draft = {
   id?: string; name: string; categoryId: string; shortDescription: string; priceType: PriceType; price: string; priceMax: string;
-  durationMinutes: string; availability: Service["availability"]; status: Service["status"]; isFeatured: boolean; internalNotes: string;
+  durationMinutes: string; availability: Service["availability"]; status: Service["status"]; isFeatured: boolean; internalNotes: string; imageUrl: string | null;
   bookingFields: (BookingField & { optionsText: string })[];
 };
 
 const blank = (categoryId: number): Draft => ({
   name: "", categoryId: String(categoryId), shortDescription: "", priceType: "fixed", price: "", priceMax: "", durationMinutes: "60",
-  availability: "available", status: "active", isFeatured: false, internalNotes: "", bookingFields: [],
+  availability: "available", status: "active", isFeatured: false, internalNotes: "", imageUrl: null, bookingFields: [],
 });
 
 const fromService = (s: Service): Draft => ({
   id: s.id, name: s.name, categoryId: String(s.categoryId), shortDescription: s.shortDescription ?? "", priceType: s.priceType,
   price: s.price?.toString() ?? "", priceMax: s.priceMax?.toString() ?? "", durationMinutes: String(s.durationMinutes),
-  availability: s.availability, status: s.status, isFeatured: s.isFeatured, internalNotes: s.internalNotes ?? "",
+  availability: s.availability, status: s.status, isFeatured: s.isFeatured, internalNotes: s.internalNotes ?? "", imageUrl: s.imageUrl,
   bookingFields: s.bookingFields.map((f) => ({ ...f, optionsText: f.options?.join(", ") ?? "" })),
 });
 
@@ -69,7 +70,8 @@ export default function Services() {
           {list.data.map((s) => (
             <li key={s.id} className="card flex flex-col gap-3 p-5">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="text-base font-semibold">{s.name}</h3>
+                {s.imageUrl && <img src={s.imageUrl} alt="" className="size-12 shrink-0 rounded-md object-cover" />}
+                <h3 className="mr-auto text-base font-semibold">{s.name}</h3>
                 <div className="flex flex-wrap justify-end gap-1">
                   {s.isFeatured && <Badge tone="amber" className="text-xs">ফিচার্ড</Badge>}
                   <Badge tone={s.status === "active" ? "green" : "neutral"} className="text-xs">{s.status === "active" ? "সক্রিয়" : "নিষ্ক্রিয়"}</Badge>
@@ -116,7 +118,7 @@ function ServiceEditor({ businessId, draft, setDraft, onSaved }: { businessId: s
         name: draft.name, categoryId: Number(draft.categoryId), shortDescription: draft.shortDescription || null, priceType: draft.priceType,
         price: draft.priceType === "contact_for_price" ? null : Number(draft.price), priceMax: draft.priceType === "range" ? Number(draft.priceMax) : null,
         durationMinutes: Number(draft.durationMinutes), availability: draft.availability, status: draft.status, isFeatured: draft.isFeatured,
-        internalNotes: draft.internalNotes || null,
+        internalNotes: draft.internalNotes || null, imageUrl: draft.imageUrl,
         bookingFields: draft.bookingFields.map((f, i) => ({
           id: f.id, label: f.label, fieldType: f.fieldType, isRequired: f.isRequired, sortOrder: i, placeholder: f.placeholder,
           options: f.fieldType === "select" ? f.optionsText.split(",").map((o) => o.trim()).filter(Boolean) : null,
@@ -159,6 +161,7 @@ function ServiceEditor({ businessId, draft, setDraft, onSaved }: { businessId: s
         <label className="label">সংক্ষিপ্ত বিবরণ <span className="text-sm font-normal text-subtle">(ঐচ্ছিক)</span>
           <textarea className="input" rows={2} maxLength={300} value={draft.shortDescription} onChange={(e) => set({ shortDescription: e.target.value })} />
         </label>
+        <ImageField businessId={businessId} label="সেবার ছবি (ঐচ্ছিক)" value={draft.imageUrl} onChange={(imageUrl) => set({ imageUrl })} hint="পাবলিক পেজে সেবার পাশে দেখাবে" />
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="label">প্রাপ্যতা
             <select className="input" value={draft.availability} onChange={(e) => set({ availability: e.target.value as Draft["availability"] })}>
