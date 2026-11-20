@@ -1,6 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useOutletContext, useParams } from "react-router";
-import { BadgeDollarSign, CalendarCheck, CalendarDays, Clock, Repeat, Star, UserPlus, XCircle } from "lucide-react";
 import { api } from "../../api/client";
 import type { BusinessAnalytics, BusinessDetail } from "../../api/types";
 import {
@@ -47,16 +46,16 @@ export default function BusinessAnalyticsPage() {
       {!a ? <LoadingList rows={3} /> : (
         <div className={`flex flex-col gap-5 transition-opacity ${q.isFetching ? "opacity-60" : ""}`}>
           <section aria-label="মূল সূচক" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <KpiTile label="মোট বুকিং" metric={k.bookings} icon={<CalendarDays />} />
-            <KpiTile label="সম্পন্ন বুকিং" metric={k.completed} icon={<CalendarCheck />} />
-            <KpiTile label="আয়" metric={k.revenue} format={fmt.taka} icon={<BadgeDollarSign />} note={<span>সম্পন্ন বুকিং থেকে</span>} />
+            <KpiTile label="মোট বুকিং" metric={k.bookings} />
+            <KpiTile label="সম্পন্ন বুকিং" metric={k.completed} />
+            <KpiTile label="আয়" metric={k.revenue} format={fmt.taka} note={<span>সম্পন্ন বুকিং থেকে</span>} />
             <KpiTile label="গড় বিল" metric={k.avg_ticket} format={fmt.taka} />
             <KpiTile label="সম্পন্নের হার" metric={k.completion_rate} format={fmt.pct} deltaMode="points" />
-            <KpiTile label="বাতিলের হার" metric={k.cancellation_rate} format={fmt.pct} deltaMode="points" upIsGood={false} icon={<XCircle />} />
-            <KpiTile label="নতুন গ্রাহক" metric={k.new_customers} icon={<UserPlus />} />
-            <KpiTile label="ফিরে আসা গ্রাহক" metric={k.returning_rate} format={fmt.pct} deltaMode="points" icon={<Repeat />} />
-            <KpiTile label="গড় রেটিং" metric={k.avg_rating} format={fmt.rating} deltaMode="points" icon={<Star />} note={<span>{bn(k.reviews?.value ?? 0)}টি নতুন রিভিউ</span>} />
-            <KpiTile label="নিশ্চিত করতে গড় সময়" metric={k.response_minutes} format={fmt.minutes} upIsGood={false} icon={<Clock />} />
+            <KpiTile label="বাতিলের হার" metric={k.cancellation_rate} format={fmt.pct} deltaMode="points" upIsGood={false} />
+            <KpiTile label="নতুন গ্রাহক" metric={k.new_customers} />
+            <KpiTile label="ফিরে আসা গ্রাহক" metric={k.returning_rate} format={fmt.pct} deltaMode="points" />
+            <KpiTile label="গড় রেটিং" metric={k.avg_rating} format={fmt.rating} deltaMode="points" note={<span>{bn(k.reviews?.value ?? 0)}টি নতুন রিভিউ</span>} />
+            <KpiTile label="নিশ্চিত করতে গড় সময়" metric={k.response_minutes} format={fmt.minutes} upIsGood={false} />
           </section>
 
           <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
