@@ -17,7 +17,9 @@ public class AvailabilityService(AppDbContext db)
 {
     public static readonly BookingStatus[] BlockingStatuses = [BookingStatus.Pending, BookingStatus.Confirmed];
 
-    public async Task<DayAvailabilityDto> GetAsync(Guid businessId, Guid serviceId, DateOnly date, CancellationToken ct = default)
+    /// <param name="excludeBookingId">A booking to ignore when counting busy slots (the one being rescheduled).</param>
+    public async Task<DayAvailabilityDto> GetAsync(Guid businessId, Guid serviceId, DateOnly date, Guid? excludeBookingId = null,
+        CancellationToken ct = default)
     {
         var settings = await db.BusinessBookingSettings.AsNoTracking().FirstOrDefaultAsync(s => s.BusinessId == businessId, ct)
             ?? throw new NotFoundException("ব্যবসাটি পাওয়া যায়নি।", "business_not_found");
@@ -43,7 +45,8 @@ public class AvailabilityService(AppDbContext db)
         var dayStart = BdTime.ToUtc(date, TimeOnly.MinValue);
         var dayEnd = dayStart.AddDays(1);
         var busy = await db.Bookings.AsNoTracking()
-            .Where(b => b.BusinessId == businessId && BlockingStatuses.Contains(b.Status) && b.StartAt < dayEnd && b.EndAt > dayStart)
+            .Where(b => b.BusinessId == businessId && BlockingStatuses.Contains(b.Status) && b.StartAt < dayEnd && b.EndAt > dayStart &&
+                        b.Id != excludeBookingId)
             .Select(b => new { b.StartAt, b.EndAt })
             .ToListAsync(ct);
 
