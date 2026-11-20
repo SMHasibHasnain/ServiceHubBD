@@ -58,6 +58,9 @@ const AdminAnalytics = lazy(() => import("./pages/platform/PlatformAnalytics").t
 const AdminUsers = lazy(() => import("./pages/platform/Admin").then((m) => ({ default: m.AdminUsers })));
 const AdminRoles = lazy(() => import("./pages/platform/Admin").then((m) => ({ default: m.AdminRoles })));
 const AdminAudit = lazy(() => import("./pages/platform/Admin").then((m) => ({ default: m.AdminAudit })));
+const AllBusinesses = lazy(() => import("./pages/platform/Staff").then((m) => ({ default: m.AllBusinesses })));
+const StaffLog = lazy(() => import("./pages/platform/Staff").then((m) => ({ default: m.StaffLog })));
+const PageDefaultsPage = lazy(() => import("./pages/platform/Staff").then((m) => ({ default: m.PageDefaultsPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -172,6 +175,7 @@ const router = createBrowserRouter([
           { path: "reports", element: <ModerationReports /> },
           { path: "history", element: <ModerationHistory /> },
           { path: "analytics", element: <ModerationAnalytics /> },
+          { path: "businesses", element: <AllBusinesses /> },
         ],
       },
       {
@@ -190,6 +194,9 @@ const router = createBrowserRouter([
           { path: "billing", element: <AdminBilling /> },
           { path: "homepage", element: <AdminHomepage /> },
           { path: "categories", element: <AdminCategories /> },
+          { path: "businesses", element: <AllBusinesses /> },
+          { path: "staff-log", element: <StaffLog /> },
+          { path: "page-defaults", element: <PageDefaultsPage /> },
         ],
       },
     ],
