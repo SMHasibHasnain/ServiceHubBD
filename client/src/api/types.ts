@@ -184,6 +184,7 @@ export interface Service {
   avgRating: number;
   lastBookedAt: IsoDateTime | null;
   bookingFields: BookingField[];
+  imageUrl: string | null;
 }
 
 export interface BusinessCard {
@@ -212,6 +213,7 @@ export interface PublicReview {
   createdAt: IsoDateTime;
   replyBody: string | null;
   repliedAt: IsoDateTime | null;
+  photos: string[];
 }
 
 export interface PublicBusiness {
@@ -236,13 +238,39 @@ export interface PublicBusiness {
   reviewCount: number;
   completedBookingCount: number;
   avgResponseMinutes: number | null;
-  websiteUrl: string | null;
-  facebookUrl: string | null;
   cancellationPolicy: string | null;
   hours: Hour[];
   services: Service[];
   ratingDistribution: Record<string, number>;
   latestReviews: PublicReview[];
+  themeKey: ThemeKey;
+  headerStyle: HeaderStyle;
+  /** Visible sections, in the owner's order. */
+  sections: SectionKey[];
+  notices: PublicNotice[];
+  faqs: Faq[];
+  highlights: Highlight[];
+  gallery: GalleryItem[];
+  team: PublicTeamMember[];
+  /** Always true on public pages; false in the owner's preview of an unverified page. */
+  isVerified: boolean;
+}
+
+// ---------- Public page customisation ----------
+export type ThemeKey = "blue" | "navy" | "teal" | "green" | "violet" | "rose" | "orange" | "slate";
+export type HeaderStyle = "cover" | "color";
+export type SectionKey = "notices" | "highlights" | "services" | "gallery" | "reviews" | "faqs" | "team" | "about";
+export interface PageSection { key: SectionKey; visible: boolean }
+export interface PublicNotice { id: Guid; title: string; body: string; isPinned: boolean; createdAt: IsoDateTime; expiresAt: IsoDateTime | null }
+export interface Notice extends PublicNotice { isPublished: boolean; updatedAt: IsoDateTime; isLive: boolean }
+export interface Faq { id: Guid | null; question: string; answer: string }
+export interface Highlight { id: Guid | null; iconKey: string; title: string; description: string | null }
+export interface GalleryItem { id: Guid | null; imageUrl: string; caption: string | null }
+export interface PublicTeamMember { name: string; title: string | null; avatarUrl: string | null }
+export interface TeamMember { memberId: Guid; name: string; title: string | null; avatarUrl: string | null; roleName: string; showOnProfile: boolean }
+export interface PageSettings {
+  themeKey: ThemeKey; headerStyle: HeaderStyle; sections: PageSection[]; notices: Notice[];
+  faqs: Faq[]; highlights: Highlight[]; gallery: GalleryItem[]; team: TeamMember[];
 }
 
 export interface Slot {
@@ -303,7 +331,27 @@ export interface Booking {
   hasReview: boolean;
   answers: { label: string; value: string | null; fileUrl: string | null }[];
   history: { from: BookingStatus | null; to: BookingStatus; actor: ActorType; reason: string | null; at: IsoDateTime }[];
+  /** Field progress set by the assigned staff ("done" is status completed). */
+  progress: WorkProgress | null;
+  progressAt: IsoDateTime | null;
+  /** The latest reschedule request: pending, or the last decision. */
+  reschedule: RescheduleRequest | null;
 }
+
+export type WorkProgress = "on_the_way" | "started";
+export type RescheduleStatus = "pending" | "accepted" | "rejected" | "cancelled";
+export interface RescheduleRequest {
+  id: Guid; proposedStartAt: IsoDateTime; proposedEndAt: IsoDateTime; previousStartAt: IsoDateTime; reason: string | null;
+  status: RescheduleStatus; responseNote: string | null; createdAt: IsoDateTime; respondedAt: IsoDateTime | null;
+}
+
+// ---------- staff day & leave ----------
+export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
+export interface Leave {
+  id: Guid; memberId: Guid; memberName: string; startDate: IsoDate; endDate: IsoDate; reason: string | null;
+  status: LeaveStatus; decisionNote: string | null; createdAt: IsoDateTime; decidedAt: IsoDateTime | null;
+}
+export interface MyDay { date: IsoDate; bookings: Booking[]; leave: Leave | null }
 
 // ---------- CRM ----------
 export interface Customer {
@@ -342,6 +390,7 @@ export interface ManagedReview {
   createdAt: IsoDateTime;
   reply: string | null;
   repliedAt: IsoDateTime | null;
+  photos: string[];
 }
 
 // ---------- team ----------
@@ -403,7 +452,7 @@ export interface VerificationDetail {
   snapshot: Record<string, unknown>;
   decisionReason: string | null;
   documents: { id: Guid; documentType: DocumentType; fileUrl: string; fileName: string | null; status: string; reviewerNote: string | null }[];
-  inspections: { id: Guid; status: InspectionStatus; outcome: InspectionOutcome | null; findings: string | null; inspectorName: string | null; visitedAt: IsoDateTime | null }[];
+  inspections: { id: Guid; status: InspectionStatus; outcome: InspectionOutcome | null; findings: string | null; inspectorName: string | null; visitedAt: IsoDateTime | null; photos: InspectionPhoto[] }[];
   previousAttempts: QueueItem[];
   history: { id: Guid; action: string; reason: string; moderatorName: string; createdAt: IsoDateTime }[];
 }
@@ -416,6 +465,8 @@ export interface ReportItem {
   targetReviewId: Guid | null;
   reviewComment: string | null;
   targetUserId: Guid | null;
+  /** The reported notice or gallery photo, as it is now (removed = already deleted). */
+  content: { type: "notice" | "gallery_item"; id: Guid; removed: boolean; title: string | null; text: string | null; imageUrl: string | null } | null;
   reason: string;
   description: string | null;
   severity: PriorityLevel;
@@ -447,7 +498,12 @@ export interface InspectionItem {
   findings: string | null;
   checklist: Record<string, boolean> | null;
   createdAt: IsoDateTime;
+  latitude: number | null;
+  longitude: number | null;
+  photos: InspectionPhoto[];
 }
+
+export interface InspectionPhoto { id: Guid; imageUrl: string; caption: string | null }
 
 // ---------- admin ----------
 export interface PlatformStats {
