@@ -63,7 +63,7 @@ export default function CreateBusiness() {
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <h1 className="text-2xl font-semibold tracking-tight">আপনার ব্যবসা পেজ তৈরি করুন</h1>
+        <h1 className="text-2xl font-semibold">আপনার ব্যবসা পেজ তৈরি করুন</h1>
         <p className="mt-1 mb-6 text-muted">ব্যবসা আপনার অ্যাকাউন্টের একটি ওয়ার্কস্পেস — আলাদা অ্যাকাউন্ট লাগবে না।</p>
         <ol className="mb-6 flex gap-2" aria-label="ধাপ">
           {STEPS.map((s, i) => (
