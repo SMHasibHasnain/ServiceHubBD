@@ -215,6 +215,15 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasColumnType("character varying(40)")
                         .HasColumnName("price_type");
 
+                    b.Property<string>("Progress")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("progress");
+
+                    b.Property<DateTime?>("ProgressAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("progress_at");
+
                     b.Property<decimal?>("QuotedPrice")
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)")
@@ -328,6 +337,78 @@ namespace ServiceHub.Api.Data.Migrations
                     b.ToTable("booking_field_responses", (string)null);
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BookingRescheduleRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("PreviousStartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("previous_start_at");
+
+                    b.Property<DateTime>("ProposedEndAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("proposed_end_at");
+
+                    b.Property<DateTime>("ProposedStartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("proposed_start_at");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("RequestedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("responded_at");
+
+                    b.Property<Guid?>("RespondedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("responded_by");
+
+                    b.Property<string>("ResponseNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("response_note");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_booking_reschedule_requests");
+
+                    b.HasIndex("RequestedBy")
+                        .HasDatabaseName("ix_booking_reschedule_requests_requested_by");
+
+                    b.HasIndex("RespondedBy")
+                        .HasDatabaseName("ix_booking_reschedule_requests_responded_by");
+
+                    b.HasIndex("BookingId", "Status")
+                        .HasDatabaseName("ix_booking_reschedule_requests_booking_id_status");
+
+                    b.ToTable("booking_reschedule_requests", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_reschedule_range", "proposed_end_at > proposed_start_at");
+                        });
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BookingStatusHistory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -438,6 +519,11 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("facebook_url");
 
+                    b.Property<string>("HeaderStyle")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("header_style");
+
                     b.Property<short?>("HealthScore")
                         .HasColumnType("smallint")
                         .HasColumnName("health_score");
@@ -491,6 +577,10 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("owner_id");
 
+                    b.Property<string>("PageLayout")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("page_layout");
+
                     b.Property<string>("Phone")
                         .HasColumnType("text")
                         .HasColumnName("phone");
@@ -522,6 +612,11 @@ namespace ServiceHub.Api.Data.Migrations
                     b.Property<string>("Tagline")
                         .HasColumnType("text")
                         .HasColumnName("tagline");
+
+                    b.Property<string>("ThemeKey")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("theme_key");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -746,6 +841,89 @@ namespace ServiceHub.Api.Data.Migrations
                     b.ToTable("business_customers", (string)null);
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessFaq", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Answer")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("answer");
+
+                    b.Property<Guid>("BusinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("question");
+
+                    b.Property<short>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_business_faqs");
+
+                    b.HasIndex("BusinessId", "SortOrder")
+                        .HasDatabaseName("ix_business_faqs_business_id_sort_order");
+
+                    b.ToTable("business_faqs", (string)null);
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessHighlight", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BusinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("IconKey")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("icon_key");
+
+                    b.Property<short>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id")
+                        .HasName("pk_business_highlights");
+
+                    b.HasIndex("BusinessId", "SortOrder")
+                        .HasDatabaseName("ix_business_highlights_business_id_sort_order");
+
+                    b.ToTable("business_highlights", (string)null);
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessHour", b =>
                 {
                     b.Property<Guid>("Id")
@@ -883,6 +1061,10 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("role_id");
 
+                    b.Property<bool>("ShowOnProfile")
+                        .HasColumnType("boolean")
+                        .HasColumnName("show_on_profile");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -914,6 +1096,68 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasDatabaseName("ix_business_members_business_id_user_id");
 
                     b.ToTable("business_members", (string)null);
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessNotice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("body");
+
+                    b.Property<Guid>("BusinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_pinned");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_published");
+
+                    b.Property<DateTime?>("NotifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("notified_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_business_notices");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_business_notices_created_by");
+
+                    b.HasIndex("BusinessId", "IsPublished", "CreatedAt")
+                        .HasDatabaseName("ix_business_notices_business_id_is_published_created_at");
+
+                    b.ToTable("business_notices", (string)null);
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessSubscription", b =>
@@ -1116,6 +1360,44 @@ namespace ServiceHub.Api.Data.Migrations
                     b.ToTable("favourites", (string)null);
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.GalleryItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BusinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Caption")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("caption");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("image_url");
+
+                    b.Property<short>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_gallery_items");
+
+                    b.HasIndex("BusinessId", "SortOrder")
+                        .HasDatabaseName("ix_gallery_items_business_id_sort_order");
+
+                    b.ToTable("gallery_items", (string)null);
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.GeoZone", b =>
                 {
                     b.Property<int>("Id")
@@ -1299,6 +1581,40 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasDatabaseName("ix_inspections_inspector_id_status_scheduled_for");
 
                     b.ToTable("inspections", (string)null);
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.InspectionPhoto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Caption")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("caption");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("image_url");
+
+                    b.Property<Guid>("InspectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inspection_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_inspection_photos");
+
+                    b.HasIndex("InspectionId")
+                        .HasDatabaseName("ix_inspection_photos_inspection_id");
+
+                    b.ToTable("inspection_photos", (string)null);
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.ModerationAction", b =>
@@ -1632,6 +1948,15 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("target_business_id");
 
+                    b.Property<Guid?>("TargetContentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_content_id");
+
+                    b.Property<string>("TargetContentType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("target_content_type");
+
                     b.Property<Guid?>("TargetReviewId")
                         .HasColumnType("uuid")
                         .HasColumnName("target_review_id");
@@ -1740,6 +2065,35 @@ namespace ServiceHub.Api.Data.Migrations
                         {
                             t.HasCheckConstraint("ck_reviews_rating", "rating BETWEEN 1 AND 5");
                         });
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.ReviewPhoto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("image_url");
+
+                    b.Property<Guid>("ReviewId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("review_id");
+
+                    b.Property<short>("SortOrder")
+                        .HasColumnType("smallint")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id")
+                        .HasName("pk_review_photos");
+
+                    b.HasIndex("ReviewId", "SortOrder")
+                        .HasDatabaseName("ix_review_photos_review_id_sort_order");
+
+                    b.ToTable("review_photos", (string)null);
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.ReviewReply", b =>
@@ -1920,6 +2274,11 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("featured_order");
 
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("image_url");
+
                     b.Property<string>("InternalNotes")
                         .HasColumnType("text")
                         .HasColumnName("internal_notes");
@@ -2048,6 +2407,74 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasDatabaseName("ix_service_booking_fields_service_id");
 
                     b.ToTable("service_booking_fields", (string)null);
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.StaffLeave", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BusinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("decision_note");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("end_date");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("member_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_staff_leaves");
+
+                    b.HasIndex("DecidedBy")
+                        .HasDatabaseName("ix_staff_leaves_decided_by");
+
+                    b.HasIndex("MemberId", "Status")
+                        .HasDatabaseName("ix_staff_leaves_member_id_status");
+
+                    b.HasIndex("BusinessId", "Status", "StartDate")
+                        .HasDatabaseName("ix_staff_leaves_business_id_status_start_date");
+
+                    b.ToTable("staff_leaves", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_staff_leaves_range", "end_date >= start_date");
+                        });
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SubscriptionEvent", b =>
@@ -2740,6 +3167,29 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasConstraintName("fk_booking_field_responses_service_booking_fields_field_id");
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BookingRescheduleRequest", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.Booking", null)
+                        .WithMany("RescheduleRequests")
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_booking_reschedule_requests_bookings_booking_id");
+
+                    b.HasOne("ServiceHub.Api.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_booking_reschedule_requests_users_requested_by");
+
+                    b.HasOne("ServiceHub.Api.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("RespondedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_booking_reschedule_requests_users_responded_by");
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BookingStatusHistory", b =>
                 {
                     b.HasOne("ServiceHub.Api.Domain.Entities.Booking", null)
@@ -2833,6 +3283,26 @@ namespace ServiceHub.Api.Data.Migrations
                         .HasConstraintName("fk_business_customers_users_user_id");
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessFaq", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_business_faqs_businesses_business_id");
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessHighlight", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_business_highlights_businesses_business_id");
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessHour", b =>
                 {
                     b.HasOne("ServiceHub.Api.Domain.Entities.Business", null)
@@ -2892,6 +3362,22 @@ namespace ServiceHub.Api.Data.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessNotice", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_business_notices_businesses_business_id");
+
+                    b.HasOne("ServiceHub.Api.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_business_notices_users_created_by");
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.BusinessSubscription", b =>
@@ -2961,6 +3447,16 @@ namespace ServiceHub.Api.Data.Migrations
                     b.Navigation("Business");
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.GalleryItem", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_gallery_items_businesses_business_id");
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.GeoZone", b =>
                 {
                     b.HasOne("ServiceHub.Api.Domain.Entities.GeoZone", "Parent")
@@ -3015,6 +3511,16 @@ namespace ServiceHub.Api.Data.Migrations
                     b.Navigation("Business");
 
                     b.Navigation("Zone");
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.InspectionPhoto", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.Inspection", null)
+                        .WithMany("Photos")
+                        .HasForeignKey("InspectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_inspection_photos_inspections_inspection_id");
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.ModerationAction", b =>
@@ -3216,6 +3722,16 @@ namespace ServiceHub.Api.Data.Migrations
                     b.Navigation("Customer");
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.ReviewPhoto", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.Review", null)
+                        .WithMany("Photos")
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_review_photos_reviews_review_id");
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.ReviewReply", b =>
                 {
                     b.HasOne("ServiceHub.Api.Domain.Entities.User", null)
@@ -3292,6 +3808,31 @@ namespace ServiceHub.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_service_booking_fields_services_service_id");
+                });
+
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.StaffLeave", b =>
+                {
+                    b.HasOne("ServiceHub.Api.Domain.Entities.Business", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_staff_leaves_businesses_business_id");
+
+                    b.HasOne("ServiceHub.Api.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("DecidedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_staff_leaves_users_decided_by");
+
+                    b.HasOne("ServiceHub.Api.Domain.Entities.BusinessMember", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_staff_leaves_business_members_member_id");
+
+                    b.Navigation("Member");
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SubscriptionEvent", b =>
@@ -3416,6 +3957,8 @@ namespace ServiceHub.Api.Data.Migrations
                     b.Navigation("FieldResponses");
 
                     b.Navigation("History");
+
+                    b.Navigation("RescheduleRequests");
                 });
 
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.Business", b =>
@@ -3434,8 +3977,15 @@ namespace ServiceHub.Api.Data.Migrations
                     b.Navigation("Notes");
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.Inspection", b =>
+                {
+                    b.Navigation("Photos");
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.Review", b =>
                 {
+                    b.Navigation("Photos");
+
                     b.Navigation("Reply");
                 });
 
