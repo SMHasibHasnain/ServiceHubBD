@@ -113,7 +113,7 @@ public class BillingTests(ApiFactory factory)
         Assert.Equal("active", plan.Str("status"));
         Assert.Equal("yearly", plan.Str("cycle"));
         Assert.InRange(plan["currentPeriodEnd"]!.GetValue<DateTime>(), DateTime.UtcNow.AddDays(364), DateTime.UtcNow.AddDays(367));
-        var invoices = await owner.GetJson($"/api/businesses/{businessId}/billing/invoices");
+        var invoices = (await owner.GetJson($"/api/businesses/{businessId}/billing/invoices"))["items"];
         Assert.Equal("paid", invoices[0].Str("status"));
 
         var ws = await owner.GetJson("/api/me/workspaces");
@@ -140,7 +140,7 @@ public class BillingTests(ApiFactory factory)
         var admin = await factory.AdminAsync();
         var row = (await admin.GetJson("/api/admin/billing/payments?status=pending&pageSize=100"))["items"]!.AsArray().Single(p => p.Str("transactionId") == trx)!;
         await admin.PostAsync($"/api/admin/billing/payments/{row.Id()}/reject", new { reason = "এই নম্বরে কোনো লেনদেন পাওয়া যায়নি" }).ExpectStatus(204);
-        var invoices = await owner.GetJson($"/api/businesses/{businessId}/billing/invoices");
+        var invoices = (await owner.GetJson($"/api/businesses/{businessId}/billing/invoices"))["items"];
         Assert.Equal("open", invoices[0].Str("status"));
         Assert.Equal("rejected", invoices[0]!["payments"]![0].Str("status"));
         // After a rejection the same TrxID may be submitted again (e.g. a typo fixed on the other side).
