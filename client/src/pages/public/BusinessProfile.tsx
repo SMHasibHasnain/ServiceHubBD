@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, ChevronLeft, ChevronRight, Clock, Flag, Heart, Home, Languages, MapPin, Megaphone, Pin, Share2, Siren, X } from "lucide-react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BadgeCheck, CheckCircle2, ChevronLeft, ChevronRight, Clock, Flag, Heart, Home, Languages, MapPin, Megaphone, Pin, Share2, Siren, X } from "lucide-react";
 import { api } from "../../api/client";
-import type { GalleryItem, PublicBusiness, SectionKey } from "../../api/types";
+import type { GalleryItem, Paged, PublicBusiness, PublicReview, SectionKey } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
-import { Badge, Button, EmptyState, ErrorBox, LinkButton, Modal, Skeleton, Stars, useToast } from "../../components/ui";
-import { Band, CoverArt, PetalPattern, Rosette, initialFont, initialOf, paintFor } from "../../components/brand";
+import { Badge, Button, EmptyState, ErrorBox, LinkButton, Modal, Pagination, Skeleton, Stars, usePage, useToast } from "../../components/ui";
+import { CoverArt, PetalPattern, Rosette, initialFont, initialOf, paintFor } from "../../components/brand";
 import { ReviewPhotos } from "../../components/shared";
 import { DAY_NAMES, REPORT_REASONS, bdDayOfWeek, bn, clock, dateShort, duration, priceLabel, todayBd } from "../../lib/format";
 import { HIGHLIGHT_ICONS, LANGUAGES, themeStyle } from "../../lib/page";
@@ -77,7 +77,6 @@ export default function BusinessProfile({ preview = false }: { preview?: boolean
     <div className="bg-cream" style={themeStyle(b.themeKey)}
       // In preview every link (book, website, search) is inert; in-page controls like the gallery still work.
       onClickCapture={preview ? (e) => { if ((e.target as HTMLElement).closest("a")) { e.preventDefault(); e.stopPropagation(); previewOnly(); } } : undefined}>
-      <Band />
       <div className="mx-auto max-w-7xl px-4 pt-6 pb-28 sm:px-6 lg:pb-10">
       <section>
         {/* Cover in a painted frame (theme colour, marigold inner line). */}
@@ -113,10 +112,10 @@ export default function BusinessProfile({ preview = false }: { preview?: boolean
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => requireLogin(() => fav.mutate())} disabled={fav.isPending} aria-pressed={isFav}
-                className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold transition-colors ${isFav ? "bg-rose text-white" : "bg-cream text-ink hover:bg-marigold"}`}>
+                className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors ${isFav ? "bg-rose text-white" : "bg-cream text-ink hover:bg-marigold"}`}>
                 <Heart className="size-4" fill={isFav ? "currentColor" : "none"} aria-hidden />{isFav ? "সংরক্ষিত" : "সংরক্ষণ করুন"}
               </button>
-              <button type="button" onClick={share} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-cream/60 px-4 text-sm font-bold text-cream hover:border-marigold hover:text-marigold">
+              <button type="button" onClick={share} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-cream/60 px-4 text-sm font-semibold text-cream hover:border-marigold hover:text-marigold">
                 <Share2 className="size-4" aria-hidden />শেয়ার করুন
               </button>
             </div>
@@ -135,7 +134,7 @@ export default function BusinessProfile({ preview = false }: { preview?: boolean
             ].map(([k, v]) => (
               <div key={k} className="rounded-[14px] border-[1.5px] border-sand bg-paper px-4 py-3.5">
                 <div className="text-sm text-muted">{k}</div>
-                <div className="font-display text-lg leading-snug font-bold text-primary">{v}</div>
+                <div className="font-display text-lg leading-snug font-semibold text-primary">{v}</div>
               </div>
             ))}
           </div>
@@ -153,13 +152,13 @@ export default function BusinessProfile({ preview = false }: { preview?: boolean
 
         <aside className="hidden w-full max-w-sm shrink-0 lg:sticky lg:top-24 lg:block">
           <div className="signboard gap-4 rounded-[18px] p-6 hover:transform-none">
-            <span className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-sm font-bold ${todayHours.length ? "bg-leaf text-white" : "bg-sand-deep text-muted"}`}>
+            <span className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1 text-sm font-semibold ${todayHours.length ? "bg-leaf text-white" : "bg-sand-deep text-muted"}`}>
               <span className={`size-2 rounded-full ${todayHours.length ? "bg-white" : "bg-zinc-400"}`} />{todayHours.length ? "আজ খোলা" : "আজ বন্ধ"}
             </span>
             {firstService && (
               <div>
                 <div className="text-sm text-muted">সেবা শুরু</div>
-                <div className="font-display text-3xl font-extrabold text-paint-red">{priceLabel(firstService.priceType, firstService.price)}</div>
+                <div className="font-display text-3xl font-semibold text-paint-red">{priceLabel(firstService.priceType, firstService.price)}</div>
               </div>
             )}
             <LinkButton to={bookUrl(firstService?.id)} size="lg" className="w-full rounded-full">অ্যাপয়েন্টমেন্ট বুক করুন</LinkButton>
@@ -173,8 +172,8 @@ export default function BusinessProfile({ preview = false }: { preview?: boolean
       </div>
 
       <ReportModal key={report?.contentId ?? "business"} target={report} onClose={() => setReport(null)} businessId={b.id} />
-      {b.services.length === 0 && <div className="mt-6"><EmptyState title="এখনও কোনো সেবা যোগ করা হয়নি।" /></div>}
-      <p className="mt-10 text-center"><Link to="/search" className="font-bold text-primary underline decoration-paint-red decoration-2 underline-offset-4 hover:text-paint-red">← আরও সেবাদাতা খুঁজুন</Link></p>
+      {b.services.length === 0 && <div className="mt-6"><EmptyState title="এখনও কোনো সেবা যোগ করা হয়নি" /></div>}
+      <p className="mt-10 text-center"><Link to="/search" className="font-semibold text-primary underline decoration-paint-red decoration-2 underline-offset-4 hover:text-paint-red">← আরও সেবাদাতা খুঁজুন</Link></p>
       </div>
     </div>
   );
@@ -217,8 +216,8 @@ function ReportModal({ target, onClose, businessId }: { target: ReportTarget | n
 function SectionCard({ id, title, icon, children }: { id: string; title: string; icon?: ReactNode; children: ReactNode }) {
   return (
     <section className="rounded-[18px] border-[1.5px] border-sand bg-paper p-5 sm:p-7" aria-labelledby={id}>
-      <h2 id={id} className="mb-5 flex items-center gap-2.5 font-display text-2xl font-extrabold text-primary">
-        {icon ?? <Rosette className="size-6 shrink-0" />}{title}
+      <h2 id={id} className="mb-5 flex items-center gap-2.5 font-display text-2xl font-semibold text-primary">
+        {icon}{title}
       </h2>
       {children}
     </section>
@@ -234,13 +233,13 @@ function NoticeBoard({ notices, onReport }: { notices: PublicBusiness["notices"]
   if (notices.length === 0) return null;
   const shown = all ? notices : notices.slice(0, 3);
   return (
-    <SectionCard id="notices" title="নোটিশ বোর্ড" icon={<Megaphone className="size-6 text-paint-red" aria-hidden />}>
+    <SectionCard id="notices" title="নোটিশ বোর্ড" icon={<Megaphone className="size-5 text-paint-red" aria-hidden />}>
       <ul className="flex flex-col gap-3">
         {shown.map((n) => (
           <li key={n.id} className={`rounded-[12px] border-[1.5px] p-4 ${n.isPinned ? "border-marigold bg-marigold-soft" : "border-sand bg-cream"}`}>
             <div className="flex flex-wrap items-center gap-2">
               {n.isPinned && <Pin className="size-4 text-paint-red" aria-label="পিন করা নোটিশ" />}
-              <h3 className="font-display text-lg font-bold">{n.title}</h3>
+              <h3 className="font-display text-lg font-semibold">{n.title}</h3>
               <span className="ml-auto text-sm text-subtle">{dateShort(n.createdAt)}</span>
             </div>
             <p className="mt-1 whitespace-pre-line text-[15px] text-ink/85">{n.body}</p>
@@ -272,7 +271,7 @@ function HighlightsSection({ items }: { items: PublicBusiness["highlights"] }) {
           return (
             <li key={h.id ?? i} className="flex gap-3">
               <span className="flex size-12 shrink-0 items-center justify-center rounded-full" style={{ background: paintFor(i).bg, color: paintFor(i).fg, boxShadow: `inset 0 0 0 3px var(--color-paper), 0 0 0 2px ${paintFor(i).bg}` }}><Icon className="size-5" aria-hidden /></span>
-              <div><div className="font-display text-lg font-bold">{h.title}</div>{h.description && <p className="text-[15px] text-muted">{h.description}</p>}</div>
+              <div><div className="font-display text-lg font-semibold">{h.title}</div>{h.description && <p className="text-[15px] text-muted">{h.description}</p>}</div>
             </li>
           );
         })}
@@ -284,21 +283,21 @@ function HighlightsSection({ items }: { items: PublicBusiness["highlights"] }) {
 function ServicesSection({ b, bookUrl }: { b: PublicBusiness; bookUrl: (serviceId?: string) => string }) {
   return (
     <SectionCard id="services" title="সেবাসমূহ">
-      {b.services.length === 0 ? <p className="text-muted">এখনও কোনো সেবা যোগ করা হয়নি।</p> : (
+      {b.services.length === 0 ? <p className="text-muted">এখনও কোনো সেবা যোগ করা হয়নি</p> : (
         <ul className="flex flex-col gap-3">
           {b.services.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-4 rounded-[12px] border-[1.5px] border-sand bg-cream p-4 transition-colors hover:border-ink">
               {s.imageUrl && <img src={s.imageUrl} alt="" className="size-16 shrink-0 rounded-[10px] border-2 border-primary object-cover" />}
               <div className="min-w-0 flex-[1_1_240px]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-display text-lg font-bold">{s.name}</span>
-                  {s.isFeatured && <span className="rounded-full bg-marigold px-2.5 py-0.5 text-xs font-bold text-ink">ফিচার্ড</span>}
+                  <span className="font-display text-lg font-semibold">{s.name}</span>
+                  {s.isFeatured && <span className="rounded-full bg-marigold px-2.5 py-0.5 text-xs font-semibold text-ink">ফিচার্ড</span>}
                   {s.availability !== "available" && <Badge className="text-xs">এখন পাওয়া যাচ্ছে না</Badge>}
                 </div>
                 {s.shortDescription && <p className="text-[15px] text-muted">{s.shortDescription}</p>}
                 <p className="text-sm text-subtle"><Clock className="mr-1 inline size-4" aria-hidden />{duration(s.durationMinutes)}{s.avgRating > 0 && <> · ★ {bn(s.avgRating)}</>}</p>
               </div>
-              <div className="min-w-24 font-display text-xl font-bold text-paint-red">{priceLabel(s.priceType, s.price, s.priceMax)}</div>
+              <div className="min-w-24 font-display text-xl font-semibold text-paint-red">{priceLabel(s.priceType, s.price, s.priceMax)}</div>
               <LinkButton to={bookUrl(s.id)} size="sm" className={`rounded-full px-5 ${s.availability !== "available" ? "pointer-events-none opacity-50" : ""}`} aria-disabled={s.availability !== "available"}>বুক করুন</LinkButton>
             </li>
           ))}
@@ -318,8 +317,8 @@ function GallerySection({ items, name, onReport }: { items: GalleryItem[]; name:
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {shown.map((g, i) => (
           <li key={g.id ?? g.imageUrl}>
-            <button onClick={() => setOpen(i)} className="group block w-full overflow-hidden rounded-[12px] border-2 border-sand hover:border-ink" aria-label={g.caption ? `ছবি: ${g.caption}` : `ছবি ${bn(i + 1)} বড় করে দেখুন`}>
-              <img src={g.imageUrl} alt={g.caption ?? `${name}-এর কাজের ছবি`} loading="lazy" className="aspect-square w-full object-cover transition duration-200 group-hover:scale-[1.03]" />
+            <button onClick={() => setOpen(i)} className="block w-full overflow-hidden rounded-[12px] border-2 border-sand transition-colors duration-150 hover:border-ink" aria-label={g.caption ? `ছবি: ${g.caption}` : `ছবি ${bn(i + 1)} বড় করে দেখুন`}>
+              <img src={g.imageUrl} alt={g.caption ?? `${name}-এর কাজের ছবি`} loading="lazy" className="aspect-square w-full object-cover" />
             </button>
           </li>
         ))}
@@ -372,15 +371,26 @@ function Lightbox({ items, index, onIndex, onClose, onReport }: {
   );
 }
 
+/** Reviews shown per page; the profile itself already carries the first page (the latest five). */
+const REVIEWS_PER_PAGE = 5;
+
 function ReviewsSection({ b, totalReviews }: { b: PublicBusiness; totalReviews: number }) {
+  const [page, setPage] = usePage();
+  const more = useQuery({
+    queryKey: ["public", "reviews", b.id, page],
+    queryFn: () => api.get<Paged<PublicReview>>(`/api/public/businesses/${b.id}/reviews`, { page, pageSize: REVIEWS_PER_PAGE }),
+    enabled: page > 1,
+    placeholderData: keepPreviousData,
+  });
+  const shown = page === 1 ? b.latestReviews : more.data?.items ?? [];
   return (
     <section className="rounded-[18px] border-[1.5px] border-sand bg-paper p-5 sm:p-7" aria-labelledby="reviews">
-      <h2 id="reviews" className="mb-5 flex items-center gap-2.5 font-display text-2xl font-extrabold text-primary"><Rosette className="size-6 shrink-0" />গ্রাহক রিভিউ</h2>
+      <h2 id="reviews" className="mb-5 flex items-center gap-2.5 font-display text-2xl font-semibold text-primary">গ্রাহক রিভিউ</h2>
       {totalReviews === 0 ? <p className="text-muted">এখনও কোনো রিভিউ নেই। শুধুমাত্র সম্পন্ন বুকিংয়ের গ্রাহকরাই রিভিউ দিতে পারেন।</p> : (
         <>
           <div className="mb-6 flex flex-wrap items-center gap-8">
             <div className="text-center">
-              <div className="font-display text-5xl leading-none font-extrabold text-primary">{bn(b.avgRating)}</div>
+              <div className="font-display text-5xl leading-none font-semibold text-primary">{bn(b.avgRating)}</div>
               <div className="text-lg tracking-widest text-marigold" aria-hidden>{"★".repeat(Math.round(b.avgRating))}</div>
               <div className="text-sm text-subtle">{bn(b.reviewCount)} রিভিউ</div>
             </div>
@@ -397,8 +407,9 @@ function ReviewsSection({ b, totalReviews }: { b: PublicBusiness; totalReviews: 
               })}
             </div>
           </div>
+          {page > 1 && !more.data && <Skeleton className="h-40" />}
           <ul className="flex flex-col gap-4">
-            {b.latestReviews.map((r) => (
+            {shown.map((r) => (
               <li key={r.id} className="flex flex-col gap-2 border-t border-sand pt-4">
                 <div className="flex items-center gap-3">
                   <span aria-hidden className={`flex size-11 shrink-0 items-center justify-center rounded-full text-xl leading-none ${initialFont(initialOf(r.customerName))}`} style={{ background: paintFor(r.customerName.length).bg, color: paintFor(r.customerName.length).fg }}><span className="translate-y-[0.06em]">{initialOf(r.customerName)}</span></span>
@@ -407,11 +418,12 @@ function ReviewsSection({ b, totalReviews }: { b: PublicBusiness; totalReviews: 
                 </div>
                 {r.comment && <p className="text-ink/85">{r.comment}</p>}
                 {r.photos.length > 0 && <ReviewPhotos photos={r.photos} />}
-                <span className="text-[13px] font-semibold text-brand-green">✓ সম্পন্ন বুকিংয়ের রিভিউ</span>
+                <span className="inline-flex items-center gap-1 text-[13px] font-medium text-brand-green"><CheckCircle2 className="size-3.5" aria-hidden />সম্পন্ন বুকিংয়ের রিভিউ</span>
                 {r.replyBody && <div className="rounded-[12px] border-l-4 border-primary bg-sand-deep px-4 py-3 text-[15px]"><span className="font-semibold">ব্যবসার উত্তর: </span>{r.replyBody}</div>}
               </li>
             ))}
           </ul>
+          <Pagination page={page} total={totalReviews} pageSize={REVIEWS_PER_PAGE} onChange={setPage} scrollTop={false} label="রিভিউর পাতা" />
         </>
       )}
     </section>
@@ -425,7 +437,7 @@ function FaqSection({ items }: { items: PublicBusiness["faqs"] }) {
       <div className="flex flex-col gap-2.5">
         {items.map((f, i) => (
           <details key={f.id ?? i} className="group rounded-[12px] border-[1.5px] border-sand bg-cream open:border-ink">
-            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-2 font-display text-lg font-bold text-primary [&::-webkit-details-marker]:hidden">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-2 font-display text-lg font-semibold text-primary [&::-webkit-details-marker]:hidden">
               <span className="flex-1">{f.question}</span>
               <Rosette color="#c4373f" className="size-5 shrink-0 transition-transform group-open:rotate-45" />
             </summary>
@@ -448,7 +460,7 @@ function TeamSection({ members }: { members: PublicBusiness["team"] }) {
               ? <img src={m.avatarUrl} alt="" className="size-20 rounded-full object-cover shadow-[0_0_0_3px_var(--color-paper),0_0_0_5px_var(--color-marigold)]" />
               : <span aria-hidden className={`flex size-20 items-center justify-center rounded-full text-3xl leading-none ${initialFont(initialOf(m.name))}`} style={{ background: paintFor(i).bg, color: paintFor(i).fg, boxShadow: `inset 0 0 0 4px var(--color-paper), 0 0 0 2px ${paintFor(i).bg}` }}><span className="translate-y-[0.06em]">{initialOf(m.name)}</span></span>}
             <div className="flex flex-col items-center gap-1">
-              <div className="font-display text-lg leading-tight font-bold">{m.name}</div>
+              <div className="font-display text-lg leading-tight font-semibold">{m.name}</div>
               {m.roleName && <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-cream">{m.roleName}</span>}
               {m.title && m.title !== m.roleName && <div className="text-sm text-muted">{m.title}</div>}
             </div>
@@ -462,19 +474,19 @@ function TeamSection({ members }: { members: PublicBusiness["team"] }) {
 function AboutSection({ b, today, onReport }: { b: PublicBusiness; today: number; onReport: () => void }) {
   return (
     <section className="rounded-[18px] border-[1.5px] border-sand bg-paper p-5 sm:p-7" aria-labelledby="about">
-      <h2 id="about" className="mb-4 flex items-center gap-2.5 font-display text-2xl font-extrabold text-primary"><Rosette className="size-6 shrink-0" />পরিচিতি</h2>
+      <h2 id="about" className="mb-4 flex items-center gap-2.5 font-display text-2xl font-semibold text-primary">পরিচিতি</h2>
       {(b.description || b.shortDescription) && <p className="mb-5 whitespace-pre-line text-ink/85">{b.description || b.shortDescription}</p>}
       <dl className="grid gap-4 text-[15px] sm:grid-cols-2">
         {b.addressLine && <div><dt className="text-muted">ঠিকানা</dt><dd className="font-semibold">{b.addressLine}{b.zoneName && `, ${b.zoneName}`}</dd></div>}
         {b.coverageNote && <div><dt className="text-muted">সেবা এলাকা</dt><dd className="font-semibold">{b.coverageNote}</dd></div>}
         {b.cancellationPolicy && <div><dt className="text-muted">বাতিলের নীতি</dt><dd className="font-semibold">{b.cancellationPolicy}</dd></div>}
       </dl>
-      <h3 className="mt-6 mb-2 font-display text-lg font-bold text-primary">কাজের সময়</h3>
+      <h3 className="mt-6 mb-2 font-display text-lg font-semibold text-primary">কাজের সময়</h3>
       <ul className="grid gap-1 text-[15px] sm:grid-cols-2">
         {DAY_NAMES.map((name, d) => {
           const hrs = b.hours.filter((h) => h.dayOfWeek === d);
           return (
-            <li key={name} className={`flex justify-between gap-4 rounded-[8px] px-3 py-1.5 ${d === today ? "bg-marigold-soft font-bold" : ""}`}>
+            <li key={name} className={`flex justify-between gap-4 rounded-[8px] px-3 py-1.5 ${d === today ? "bg-marigold-soft font-semibold" : ""}`}>
               <span>{name}</span><span>{hrs.length ? hrs.map((h) => `${clock(h.opensAt)}–${clock(h.closesAt)}`).join(", ") : "বন্ধ"}</span>
             </li>
           );
