@@ -81,7 +81,8 @@ public record BusinessDto(
 [ApiController]
 [Authorize]
 [Route("api/businesses")]
-public class BusinessesController(AppDbContext db, ICurrentUser me, AccessService access, AuditLogger audit, EntitlementService plans) : ControllerBase
+public class BusinessesController(AppDbContext db, ICurrentUser me, AccessService access, AuditLogger audit, EntitlementService plans,
+    Page.UploadCleanup cleanup) : ControllerBase
 {
     private static readonly VerificationStatus[] EditableForSubmit =
         [VerificationStatus.Draft, VerificationStatus.Rejected, VerificationStatus.InfoRequested];
@@ -135,6 +136,9 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
     {
         var member = await access.RequireBusinessAsync(id, P.BusinessUpdate);
         var b = await db.Businesses.FirstAsync(x => x.Id == id);
+        var (oldLogo, oldCover) = (b.LogoUrl, b.CoverUrl);
+        ImageUrls.Ensure(req.LogoUrl);
+        ImageUrls.Ensure(req.CoverUrl);
         if (req.CategoryId is not null) { await EnsureCategoryAsync(req.CategoryId.Value); b.CategoryId = req.CategoryId.Value; }
         if (req.ZoneId is not null) { await EnsureZoneAsync(req.ZoneId.Value); b.ZoneId = req.ZoneId; }
         if (req.Name is not null) b.Name = req.Name.Trim();
@@ -158,6 +162,7 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
         if (req.OnboardingStep is not null) b.OnboardingStep = req.OnboardingStep.Value;
         audit.Log("business.update", "business", id, businessId: id, scope: RoleScope.Business, roleId: member.RoleId);
         await db.SaveChangesAsync();
+        await cleanup.DeleteIfUnusedAsync(id, oldLogo, oldCover);
         return await LoadDtoAsync(id);
     }
 
