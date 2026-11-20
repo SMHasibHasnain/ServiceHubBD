@@ -194,16 +194,18 @@ public class MeController(AppDbContext db, ICurrentUser me, AccessService access
 
     /// <summary>My saved businesses as cards (only ones still published), newest saved first.</summary>
     [HttpGet("favourites/businesses")]
-    public async Task<ActionResult<List<Businesses.BusinessCardDto>>> FavouriteBusinesses()
+    public async Task<ActionResult<PagedResult<Businesses.BusinessCardDto>>> FavouriteBusinesses([FromQuery] PageQuery paging)
     {
         var userId = me.RequireId();
-        return await db.Favourites.Where(f => f.UserId == userId && f.Business.Status == BusinessStatus.Published)
-            .OrderByDescending(f => f.CreatedAt).Select(f => f.Business)
+        var query = db.Favourites.Where(f => f.UserId == userId && f.Business.Status == BusinessStatus.Published);
+        var total = await query.CountAsync();
+        var items = await query.OrderByDescending(f => f.CreatedAt).Skip(paging.Skip).Take(paging.SafeSize).Select(f => f.Business)
             .Select(b => new Businesses.BusinessCardDto(b.Id, b.Name, b.Slug, b.LogoUrl, b.CoverUrl, b.CategoryId, b.Category.NameBn,
                 b.Zone != null ? b.Zone.NameBn : null, b.AvgRating, b.ReviewCount,
                 b.Services.Where(s => s.Status == RecordStatus.Active && s.Price != null).Min(s => s.Price),
                 b.OffersHomeService, b.OffersEmergencyService, b.VerificationStatus == VerificationStatus.Approved))
             .ToListAsync();
+        return new PagedResult<Businesses.BusinessCardDto>(items, paging.SafePage, paging.SafeSize, total);
     }
 
     /// <summary>A photo for something I write (review photos). Stored in my own folder; only I can attach it.</summary>
