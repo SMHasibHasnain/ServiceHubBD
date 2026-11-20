@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { BadgeCheck } from "lucide-react";
@@ -72,13 +72,11 @@ function ZoneLevelSelect({ parentId, label, value, onChange, required }: {
   );
 }
 
-const CARD_SHADOWS = ["var(--color-primary)", "var(--color-paint-red)", "var(--color-leaf)"];
 
-/** Signboard-style business card: photo on top, ink outline, hard shadow cycling through the paint colours. */
-export function BusinessCardView({ b, index }: { b: Card; index?: number }) {
-  const shadow = CARD_SHADOWS[(index ?? 0) % CARD_SHADOWS.length];
+/** Signboard-style business card: photo on top, ink outline, hard navy shadow. */
+export function BusinessCardView({ b }: { b: Card }) {
   return (
-    <article className="signboard group" style={{ "--signboard-shadow": shadow } as CSSProperties}>
+    <article className="signboard signboard-link group">
       <Link to={`/b/${b.slug}`} className="flex flex-1 flex-col">
         <div className="relative aspect-[16/9] border-b-[2.5px] border-ink">
           {b.coverUrl ? <img src={b.coverUrl} alt="" className="size-full object-cover" loading="lazy" /> : <CoverArt categoryId={b.categoryId} className="size-full" />}
@@ -91,7 +89,7 @@ export function BusinessCardView({ b, index }: { b: Card; index?: number }) {
         <div className="flex flex-1 flex-col gap-0.5 px-5 pt-4 pb-3">
           <div className="flex items-center gap-2.5">
             {b.logoUrl && <img src={b.logoUrl} alt="" className="size-9 rounded-full border-2 border-ink object-cover" />}
-            <h3 className="min-w-0 truncate font-display text-[22px] leading-tight font-bold text-primary group-hover:text-paint-red">{b.name}</h3>
+            <h3 className="min-w-0 truncate font-display text-[22px] leading-tight font-semibold text-primary transition-colors duration-150 group-hover:text-paint-red">{b.name}</h3>
           </div>
           <span className="text-[15px] text-muted">{b.categoryName}{b.zoneName && ` · ${b.zoneName}`}</span>
           <div className="mt-1 flex flex-wrap gap-1.5">
