@@ -3,7 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { Crown, Phone, Users } from "lucide-react";
 import { api } from "../../api/client";
 import type { Customer, CustomerDetail, Paged } from "../../api/types";
-import { Avatar, Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, Segmented, useToast } from "../../components/ui";
+import { Avatar, Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PAGE_SIZE, PageHeader, Pagination, Segmented, useClientPage, usePage, useToast } from "../../components/ui";
 import { BOOKING_STATUS, bn, dateShort, relative, taka } from "../../lib/format";
 import { useBiz } from "./Dashboard";
 
@@ -17,9 +17,10 @@ export default function Customers() {
   const [segment, setSegment] = useState<Segment>("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
+  const [page, setPage] = usePage({ segment, q });
   const list = useQuery({
-    queryKey: ["business", biz?.id, "customers", { segment, q }],
-    queryFn: () => api.get<Paged<Customer>>(`/api/businesses/${biz!.id}/customers`, { segment, q, pageSize: 100 }),
+    queryKey: ["business", biz?.id, "customers", { segment, q, page }],
+    queryFn: () => api.get<Paged<Customer>>(`/api/businesses/${biz!.id}/customers`, { segment, q, page, pageSize: PAGE_SIZE }),
     enabled: !!biz,
     placeholderData: keepPreviousData,
   });
@@ -58,7 +59,8 @@ export default function Customers() {
             </tbody>
           </table>
         </div>
-      ) : <EmptyState icon={<Users className="size-8" aria-hidden />} title="এখনও কোনো গ্রাহক নেই।" description="প্রথম বুকিং এলেই গ্রাহক এখানে স্বয়ংক্রিয়ভাবে যুক্ত হবেন।" />}
+      ) : <EmptyState icon={<Users className="size-8" aria-hidden />} title="এখনও কোনো গ্রাহক নেই" description="প্রথম বুকিং এলেই গ্রাহক এখানে স্বয়ংক্রিয়ভাবে যুক্ত হবেন।" />}
+      {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} label="গ্রাহকের পাতা" />}
       {open && biz && <CustomerPanel businessId={biz.id} customerId={open} permissions={biz.myPermissions} onClose={() => setOpen(null)} />}
     </>
   );
@@ -77,6 +79,8 @@ function CustomerPanel({ businessId, customerId, permissions, onClose }: { busin
     onSuccess: () => { setNote(""); refresh(); toast("নোট যোগ হয়েছে।"); },
   });
   const d = detail.data;
+  const notes = useClientPage(d?.notes, customerId, 5);
+  const history = useClientPage(d?.bookings, customerId, 5);
 
   return (
     <Modal open onClose={onClose} title={d?.customer.displayName ?? "গ্রাহক"} wide>
@@ -104,14 +108,15 @@ function CustomerPanel({ businessId, customerId, permissions, onClose }: { busin
               </div>
             )}
             <ul className="flex flex-col gap-2">
-              {d.notes.map((n) => <li key={n.id} className="rounded-md bg-amber-50 px-4 py-3"><p>{n.body}</p><p className="text-sm text-subtle">{n.authorName} · {relative(n.createdAt)}</p></li>)}
-              {d.notes.length === 0 && <li className="text-muted">এখনও কোনো নোট নেই।</li>}
+              {notes.items.map((n) => <li key={n.id} className="rounded-md bg-amber-50 px-4 py-3"><p>{n.body}</p><p className="text-sm text-subtle">{n.authorName} · {relative(n.createdAt)}</p></li>)}
+              {d.notes.length === 0 && <li className="text-muted">এখনও কোনো নোট নেই</li>}
             </ul>
+            <Pagination page={notes.page} total={notes.total} pageSize={notes.pageSize} onChange={notes.setPage} scrollTop={false} label="নোটের পাতা" />
           </section>
           <section>
             <h3 className="mb-2 font-semibold">বুকিংয়ের ইতিহাস</h3>
             <ul className="divide-y divide-zinc-100 rounded-md border border-line">
-              {d.bookings.map((b) => (
+              {history.items.map((b) => (
                 <li key={b.bookingId} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[15px]">
                   <span className="w-28 text-subtle">{dateShort(b.startAt)}</span><span className="flex-1 font-medium">{b.serviceName}</span>
                   {b.finalPrice != null && <span className="font-num">{taka(b.finalPrice)}</span>}
@@ -119,6 +124,7 @@ function CustomerPanel({ businessId, customerId, permissions, onClose }: { busin
                 </li>
               ))}
             </ul>
+            <Pagination page={history.page} total={history.total} pageSize={history.pageSize} onChange={history.setPage} scrollTop={false} label="বুকিংয়ের ইতিহাসের পাতা" />
           </section>
         </div>
       )}
