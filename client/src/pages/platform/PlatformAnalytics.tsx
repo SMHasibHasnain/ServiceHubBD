@@ -1,8 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import {
-  AlarmClock, BadgeCheck, BadgeDollarSign, Building2, CalendarDays, ClipboardCheck, Flag, Gauge, Hourglass, MapPin,
-  ShieldCheck, Star, Timer, UserCheck, UserPlus, Users,
-} from "lucide-react";
+import { MapPin } from "lucide-react";
 import { api } from "../../api/client";
 import type { AdminAnalytics, InspectionAnalytics, ModerationAnalytics } from "../../api/types";
 import {
@@ -38,13 +35,13 @@ export function ModerationAnalyticsPage() {
       {!a ? <LoadingList rows={3} /> : (
         <Frame fetching={q.isFetching}>
           <section aria-label="মূল সূচক" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <KpiTile label="এখন অপেক্ষমাণ" metric={k.pending_now} icon={<Hourglass />} note={<span>বর্তমান সারি</span>} />
-            <KpiTile label="নতুন আবেদন" metric={k.submitted} icon={<ShieldCheck />} />
-            <KpiTile label="সিদ্ধান্ত দেওয়া হয়েছে" metric={k.decided} icon={<BadgeCheck />} />
+            <KpiTile label="এখন অপেক্ষমাণ" metric={k.pending_now} note={<span>বর্তমান সারি</span>} />
+            <KpiTile label="নতুন আবেদন" metric={k.submitted} />
+            <KpiTile label="সিদ্ধান্ত দেওয়া হয়েছে" metric={k.decided} />
             <KpiTile label="অনুমোদনের হার" metric={k.approval_rate} format={fmt.pct} deltaMode="points" upIsGood={null} />
-            <KpiTile label="সিদ্ধান্তে গড় সময়" metric={k.decision_hours} format={fmt.hours} upIsGood={false} icon={<Timer />} />
-            <KpiTile label="প্রথম পর্যালোচনায় গড় সময়" metric={k.first_review_hours} format={fmt.hours} upIsGood={false} icon={<AlarmClock />} />
-            <KpiTile label="খোলা রিপোর্ট" metric={k.reports_open_now} icon={<Flag />} note={<span>বর্তমানে</span>} />
+            <KpiTile label="সিদ্ধান্তে গড় সময়" metric={k.decision_hours} format={fmt.hours} upIsGood={false} />
+            <KpiTile label="প্রথম পর্যালোচনায় গড় সময়" metric={k.first_review_hours} format={fmt.hours} upIsGood={false} />
+            <KpiTile label="খোলা রিপোর্ট" metric={k.reports_open_now} note={<span>বর্তমানে</span>} />
             <KpiTile label="নতুন রিপোর্ট" metric={k.reports_opened} upIsGood={false} />
             <KpiTile label="নিষ্পত্তি হওয়া রিপোর্ট" metric={k.reports_resolved} />
             <KpiTile label="রিপোর্ট নিষ্পত্তিতে গড় সময়" metric={k.report_resolution_hours} format={fmt.hours} upIsGood={false} />
@@ -103,14 +100,14 @@ export function InspectionAnalyticsPage() {
       {!a ? <LoadingList rows={3} /> : (
         <Frame fetching={q.isFetching}>
           <section aria-label="মূল সূচক" className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <KpiTile label="খোলা পরিদর্শন" metric={k.open_now} icon={<ClipboardCheck />} note={<span>বর্তমানে</span>} />
+            <KpiTile label="খোলা পরিদর্শন" metric={k.open_now} note={<span>বর্তমানে</span>} />
             <KpiTile label="দায়িত্বহীন" metric={k.unassigned_now} note={<span>কেউ নেননি</span>} />
-            <KpiTile label="সময় পেরিয়ে গেছে" metric={k.overdue_now} icon={<AlarmClock />} note={<span>নির্ধারিত সময় অতিক্রান্ত</span>} />
+            <KpiTile label="সময় পেরিয়ে গেছে" metric={k.overdue_now} note={<span>নির্ধারিত সময় অতিক্রান্ত</span>} />
             <KpiTile label="নতুন অনুরোধ" metric={k.requested} />
             <KpiTile label="সম্পন্ন (এলাকা)" metric={k.completed} />
-            <KpiTile label="আমি সম্পন্ন করেছি" metric={k.mine_completed} icon={<UserCheck />} />
+            <KpiTile label="আমি সম্পন্ন করেছি" metric={k.mine_completed} />
             <KpiTile label="উত্তীর্ণের হার" metric={k.pass_rate} format={fmt.pct} deltaMode="points" upIsGood={null} />
-            <KpiTile label="অনুরোধ থেকে পরিদর্শন" metric={k.turnaround_hours} format={fmt.hours} upIsGood={false} icon={<Timer />} />
+            <KpiTile label="অনুরোধ থেকে পরিদর্শন" metric={k.turnaround_hours} format={fmt.hours} upIsGood={false} />
           </section>
           <ChartCard title="অনুরোধ বনাম সম্পন্ন" table={trendTable(a.trend, INS_TREND)}>
             <LineChart data={a.trend} series={INS_TREND} />
@@ -150,31 +147,31 @@ export function AdminAnalyticsPage() {
       <ErrorBox error={q.error} />
       {!a ? <LoadingList rows={3} /> : (
         <Frame fetching={q.isFetching}>
-          <div className="bg-brand relative overflow-hidden rounded-xl p-5 text-white shadow-lift sm:p-6">
+          <div className="bg-brand relative overflow-hidden rounded-xl p-5 text-white tabular-nums sm:p-6">
             <div className="relative flex flex-wrap items-end justify-between gap-6">
               <div>
-                <p className="text-sm text-blue-100">গত {bn(a.days)} দিনে মোট লেনদেন (সম্পন্ন বুকিং)</p>
+                <p className="text-sm text-[#cfd8ea]">গত {bn(a.days)} দিনে মোট লেনদেন (সম্পন্ন বুকিং)</p>
                 <p className="mt-1 text-5xl leading-none font-semibold">{fmt.taka(k.gmv?.value ?? 0)}</p>
               </div>
               <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
-                <div><dt className="text-blue-100">মোট ব্যবহারকারী</dt><dd className="text-xl font-semibold">{fmt.count(k.total_users?.value ?? 0)}</dd></div>
-                <div><dt className="text-blue-100">সক্রিয় ব্যবসা</dt><dd className="text-xl font-semibold">{fmt.count(k.live_businesses?.value ?? 0)}</dd></div>
-                <div><dt className="text-blue-100">অপেক্ষমাণ যাচাই</dt><dd className="text-xl font-semibold">{fmt.count(k.pending_verifications?.value ?? 0)}</dd></div>
-                <div><dt className="text-blue-100">খোলা রিপোর্ট</dt><dd className="text-xl font-semibold">{fmt.count(k.open_reports?.value ?? 0)}</dd></div>
+                <div><dt className="text-[#cfd8ea]">মোট ব্যবহারকারী</dt><dd className="text-xl font-semibold">{fmt.count(k.total_users?.value ?? 0)}</dd></div>
+                <div><dt className="text-[#cfd8ea]">সক্রিয় ব্যবসা</dt><dd className="text-xl font-semibold">{fmt.count(k.live_businesses?.value ?? 0)}</dd></div>
+                <div><dt className="text-[#cfd8ea]">অপেক্ষমাণ যাচাই</dt><dd className="text-xl font-semibold">{fmt.count(k.pending_verifications?.value ?? 0)}</dd></div>
+                <div><dt className="text-[#cfd8ea]">খোলা রিপোর্ট</dt><dd className="text-xl font-semibold">{fmt.count(k.open_reports?.value ?? 0)}</dd></div>
               </dl>
             </div>
           </div>
 
           <section aria-label="মূল সূচক" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <KpiTile label="নতুন ব্যবহারকারী" metric={k.new_users} icon={<UserPlus />} />
-            <KpiTile label="সক্রিয় ব্যবহারকারী" metric={k.active_users} icon={<Users />} note={<span>এই সময়ে লগইন</span>} />
-            <KpiTile label="নতুন ব্যবসা পেজ" metric={k.new_businesses} icon={<Building2 />} />
-            <KpiTile label="প্রকাশিত হয়েছে" metric={k.published_businesses} icon={<BadgeCheck />} />
-            <KpiTile label="মোট বুকিং" metric={k.bookings} icon={<CalendarDays />} />
+            <KpiTile label="নতুন ব্যবহারকারী" metric={k.new_users} />
+            <KpiTile label="সক্রিয় ব্যবহারকারী" metric={k.active_users} note={<span>এই সময়ে লগইন</span>} />
+            <KpiTile label="নতুন ব্যবসা পেজ" metric={k.new_businesses} />
+            <KpiTile label="প্রকাশিত হয়েছে" metric={k.published_businesses} />
+            <KpiTile label="মোট বুকিং" metric={k.bookings} />
             <KpiTile label="সম্পন্ন বুকিং" metric={k.completed} />
-            <KpiTile label="লেনদেন" metric={k.gmv} format={fmt.taka} icon={<BadgeDollarSign />} />
-            <KpiTile label="সম্পন্নের হার" metric={k.completion_rate} format={fmt.pct} deltaMode="points" icon={<Gauge />} />
-            <KpiTile label="নতুন রিভিউ" metric={k.reviews} icon={<Star />} />
+            <KpiTile label="লেনদেন" metric={k.gmv} format={fmt.taka} />
+            <KpiTile label="সম্পন্নের হার" metric={k.completion_rate} format={fmt.pct} deltaMode="points" />
+            <KpiTile label="নতুন রিভিউ" metric={k.reviews} />
             <KpiTile label="গড় রেটিং" metric={k.avg_rating} format={fmt.rating} deltaMode="points" />
           </section>
 
