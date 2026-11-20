@@ -2409,6 +2409,36 @@ namespace ServiceHub.Api.Data.Migrations
                     b.ToTable("service_booking_fields", (string)null);
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.SiteContent", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_id");
+
+                    b.HasKey("Key")
+                        .HasName("pk_site_contents");
+
+                    b.ToTable("site_contents", (string)null);
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.StaffLeave", b =>
                 {
                     b.Property<Guid>("Id")

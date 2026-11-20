@@ -41,6 +41,7 @@ public static class P
     public const string CampaignsManage = "campaigns.manage";
     public const string AuditView = "audit.view";
     public const string SubscriptionsManage = "subscriptions.manage";
+    public const string SiteContentManage = "site_content.manage";
 
     public static readonly (string Key, RoleScope Scope, string Module, string Description)[] All =
     [
@@ -78,6 +79,7 @@ public static class P
         (CampaignsManage, RoleScope.Platform, "marketing", "ক্যাম্পেইন ব্যবস্থাপনা"),
         (AuditView, RoleScope.Platform, "admin", "অডিট লগ দেখা"),
         (SubscriptionsManage, RoleScope.Platform, "billing", "সাবস্ক্রিপশন, পেমেন্ট যাচাই ও প্ল্যান প্রদান"),
+        (SiteContentManage, RoleScope.Platform, "admin", "হোমপেজের লেখা, সেকশন ও সাইটের হেডার-ফুটার সম্পাদনা"),
     ];
 }
 
@@ -119,7 +121,7 @@ public static class R
 
         new(SuperAdmin, RoleScope.Platform, "সুপার এ্যাডমিন", "Super admin", 100, WorkspaceType.Administration, AllPlatform),
         new(Admin, RoleScope.Platform, "এ্যাডমিন", "Admin", 90, WorkspaceType.Administration,
-            AllPlatform.Where(k => k != P.RolesAssignAdmin).ToArray()),
+            AllPlatform.Where(k => k != P.RolesAssignAdmin && k != P.SiteContentManage).ToArray()),
         new(SystemModerator, RoleScope.Platform, "সিস্টেম মডারেটর", "System moderator", 50, WorkspaceType.Moderation,
             [P.VerificationReview, P.ReportsReview, P.ReviewsModerate, P.BusinessesSuspend, P.InspectionsRequest]),
         new(Inspector, RoleScope.Zone, "ইন্সপেক্টর", "Inspector", 40, WorkspaceType.Inspection,
