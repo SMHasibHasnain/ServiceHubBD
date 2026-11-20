@@ -4,7 +4,7 @@ import { UserPlus } from "lucide-react";
 import { api } from "../../api/client";
 import type { AdminUser, Assignment, AuditLogItem, Paged, Role } from "../../api/types";
 import { flattenCategories, useCategories, ZonePicker } from "../../components/shared";
-import { Avatar, Badge, Button, ErrorBox, LoadingList, Modal, PageHeader, useToast } from "../../components/ui";
+import { Avatar, Badge, Button, ErrorBox, LoadingList, Modal, PAGE_SIZE, PageHeader, Pagination, usePage, useToast } from "../../components/ui";
 import { ROLE_NAMES, bn, dateShort, dateTime, relative } from "../../lib/format";
 
 export function AdminUsers() {
@@ -14,7 +14,8 @@ export function AdminUsers() {
   const [acting, setActing] = useState<{ user: AdminUser; action: "suspend" | "activate" } | null>(null);
   const [granting, setGranting] = useState<AdminUser | null>(null);
   const [reason, setReason] = useState("");
-  const users = useQuery({ queryKey: ["admin", "users", q], queryFn: () => api.get<Paged<AdminUser>>("/api/admin/users", { q, pageSize: 50 }), placeholderData: keepPreviousData });
+  const [page, setPage] = usePage(q);
+  const users = useQuery({ queryKey: ["admin", "users", q, page], queryFn: () => api.get<Paged<AdminUser>>("/api/admin/users", { q, page, pageSize: PAGE_SIZE }), placeholderData: keepPreviousData });
   const act = useMutation({
     mutationFn: () => api.post(`/api/admin/users/${acting!.user.id}/${acting!.action}`, { reason }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "users"] }); toast(acting!.action === "suspend" ? "অ্যাকাউন্ট স্থগিত করা হয়েছে।" : "অ্যাকাউন্ট সক্রিয় করা হয়েছে।"); setActing(null); setReason(""); },
@@ -49,6 +50,7 @@ export function AdminUsers() {
           </table>
         </div>
       )}
+      {users.data && <Pagination page={page} total={users.data.total} onChange={setPage} label="ব্যবহারকারীর পাতা" />}
       <Modal open={!!acting} onClose={() => setActing(null)} title={acting?.action === "suspend" ? "অ্যাকাউন্ট স্থগিত করবেন?" : "অ্যাকাউন্ট সক্রিয় করবেন?"}
         footer={<><Button variant="ghost" onClick={() => setActing(null)}>বাতিল</Button><Button variant={acting?.action === "suspend" ? "danger" : "primary"} disabled={reason.trim().length < 5} loading={act.isPending} onClick={() => act.mutate()}>নিশ্চিত করুন</Button></>}>
         <div className="flex flex-col gap-3">
@@ -104,7 +106,12 @@ export function AdminRoles() {
   const toast = useToast();
   const [revoking, setRevoking] = useState<Assignment | null>(null);
   const [reason, setReason] = useState("");
-  const list = useQuery({ queryKey: ["admin", "assignments"], queryFn: () => api.get<Assignment[]>("/api/admin/role-assignments") });
+  const [page, setPage] = usePage();
+  const list = useQuery({
+    queryKey: ["admin", "assignments", page],
+    queryFn: () => api.get<Paged<Assignment>>("/api/admin/role-assignments", { page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
+  });
   const roles = useQuery({ queryKey: ["roles", "all"], queryFn: () => api.get<Role[]>("/api/roles") });
   const revoke = useMutation({
     mutationFn: () => api.post(`/api/admin/role-assignments/${revoking!.id}/revoke`, { reason }),
@@ -119,7 +126,7 @@ export function AdminRoles() {
         <h2 className="mb-3 text-base font-semibold">সক্রিয় প্ল্যাটফর্ম ভূমিকা</h2>
         {list.isLoading ? <LoadingList /> : (
           <ul className="card divide-y divide-zinc-100">
-            {list.data?.map((a) => (
+            {list.data?.items.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
                 <span className="min-w-40 flex-1 font-semibold">{a.userName}</span>
                 <Badge tone="blue">{a.roleName}</Badge>
@@ -130,6 +137,7 @@ export function AdminRoles() {
             ))}
           </ul>
         )}
+        {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} scrollTop={false} label="ভূমিকার পাতা" />}
       </section>
       <section>
         <h2 className="mb-3 text-base font-semibold">ভূমিকার তালিকা</h2>
@@ -155,7 +163,12 @@ export function AdminRoles() {
 }
 
 export function AdminAudit() {
-  const logs = useQuery({ queryKey: ["admin", "audit"], queryFn: () => api.get<Paged<AuditLogItem>>("/api/admin/audit-logs", { pageSize: 100 }) });
+  const [page, setPage] = usePage();
+  const logs = useQuery({
+    queryKey: ["admin", "audit", page],
+    queryFn: () => api.get<Paged<AuditLogItem>>("/api/admin/audit-logs", { page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
+  });
   return (
     <>
       <PageHeader title="অডিট লগ" subtitle="প্রতিটি সংবেদনশীল কাজের অপরিবর্তনীয় রেকর্ড" />
@@ -177,6 +190,7 @@ export function AdminAudit() {
           </table>
         </div>
       )}
+      {logs.data && <Pagination page={page} total={logs.data.total} onChange={setPage} label="অডিট লগের পাতা" />}
     </>
   );
 }
