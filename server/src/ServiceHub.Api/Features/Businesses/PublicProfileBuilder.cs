@@ -73,7 +73,7 @@ public class PublicProfileBuilder(AppDbContext db)
             ? await db.BusinessMembers.AsNoTracking()
                 .Where(m => m.BusinessId == b.Id && m.Status == MemberStatus.Active && m.ShowOnProfile)
                 .OrderByDescending(m => m.Role.Rank).ThenBy(m => m.JoinedAt)
-                .Select(m => new PublicTeamMemberDto(m.User.FullName, m.Title, m.User.AvatarUrl)).ToListAsync()
+                .Select(m => new PublicTeamMemberDto(m.User.FullName, m.Title, m.User.AvatarUrl, m.Role.NameBn)).ToListAsync()
             : [];
 
         // Only visible sections are listed, in the owner's order; the client also skips empty ones.

@@ -42,7 +42,8 @@ public record PublicBusinessDto(Guid Id, string Name, string Slug, string? Tagli
 
 public record PublicNoticeDto(Guid Id, string Title, string Body, bool IsPinned, DateTime CreatedAt, DateTime? ExpiresAt);
 
-public record PublicTeamMemberDto(string Name, string? Title, string? AvatarUrl);
+/// <summary>A team member shown on the public page: name, optional custom title, photo and role (e.g. মালিক, স্টাফ).</summary>
+public record PublicTeamMemberDto(string Name, string? Title, string? AvatarUrl, string RoleName);
 
 /// <summary>Guest-accessible discovery endpoints. Only published (verified) businesses are visible.</summary>
 [ApiController]

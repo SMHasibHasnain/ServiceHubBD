@@ -133,7 +133,8 @@ public class PublicPageTests(ApiFactory factory)
         Assert.Equal(["কত দিনের ওয়ারেন্টি?", "বাসায় আসেন?"], Keys(profile["faqs"], "question"));
         Assert.Equal("অভিজ্ঞ টেকনিশিয়ান", profile["highlights"]![0].Str("title"));
         Assert.Equal("লেআউট মালিক", profile["team"]![0].Str("name"));
-        Assert.Null(profile["team"]![0]!["phone"]); // only name, title and photo are public
+        Assert.Equal("মালিক", profile["team"]![0].Str("roleName"));
+        Assert.Null(profile["team"]![0]!["phone"]); // only name, title, photo and role are public
 
         // The owner's preview of a published page is the public page.
         var published = await owner.GetJson($"/api/businesses/{bizId}/page/preview");
