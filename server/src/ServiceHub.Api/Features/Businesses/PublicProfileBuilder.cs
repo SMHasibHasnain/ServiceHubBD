@@ -12,7 +12,7 @@ namespace ServiceHub.Api.Features.Businesses;
 /// and by the owner's preview (any status), so the preview can never drift from the real page.
 /// Website and Facebook links are deliberately left out, like the phone: booking and contact stay on the platform.
 /// </summary>
-public class PublicProfileBuilder(AppDbContext db)
+public class PublicProfileBuilder(AppDbContext db, Page.PageDefaults defaults)
 {
     public async Task<PublicBusinessDto?> BuildAsync(Expression<Func<Domain.Entities.Business, bool>> where)
     {
@@ -37,17 +37,17 @@ public class PublicProfileBuilder(AppDbContext db)
             b.Hours.OrderBy(h => h.DayOfWeek).ThenBy(h => h.OpensAt).Select(h => new PublicHourDto(h.DayOfWeek, h.OpensAt, h.ClosesAt)).ToList(),
             services, distribution.OrderByDescending(kv => kv.Key).ToDictionary(kv => kv.Key, kv => kv.Value),
             await ReviewsQuery(b.Id).Take(5).ToListAsync(),
-            b.ThemeKey ?? "blue", b.HeaderStyle ?? "cover", page.Sections, page.Notices, page.Faqs, page.Highlights, page.Gallery, page.Team,
+            page.Theme, page.Header, page.Sections, page.Notices, page.Faqs, page.Highlights, page.Gallery, page.Team,
             b.VerificationStatus == VerificationStatus.Approved);
     }
 
-    private record PageContent(List<string> Sections, List<PublicNoticeDto> Notices, List<FaqDto> Faqs,
+    private record PageContent(string Theme, string Header, List<string> Sections, List<PublicNoticeDto> Notices, List<FaqDto> Faqs,
         List<HighlightDto> Highlights, List<GalleryItemDto> Gallery, List<PublicTeamMemberDto> Team);
 
     /// <summary>Owner-controlled page content. Hidden sections are not loaded at all, so they can't leak.</summary>
     private async Task<PageContent> LoadPageAsync(Domain.Entities.Business b)
     {
-        var layout = PageCatalog.Normalize(b.PageLayout);
+        var (theme, header, layout) = await defaults.EffectiveAsync(b);
         bool Show(string key) => PageCatalog.IsVisible(layout, key);
         var now = DateTime.UtcNow;
 
@@ -78,7 +78,7 @@ public class PublicProfileBuilder(AppDbContext db)
 
         // Only visible sections are listed, in the owner's order; the client also skips empty ones.
         var sections = layout.Where(s => s.Visible).Select(s => s.Key).ToList();
-        return new PageContent(sections, notices, faqs, highlights, gallery, team);
+        return new PageContent(theme, header, sections, notices, faqs, highlights, gallery, team);
     }
 
     public IQueryable<ReviewDto> ReviewsQuery(Guid businessId, short? rating = null) =>
