@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using ServiceHub.Api.Access;
@@ -41,11 +43,16 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<InspectionRouter>();
+builder.Services.AddScoped<ServiceHub.Api.Features.Businesses.PublicProfileBuilder>();
+builder.Services.AddScoped<ServiceHub.Api.Features.Page.UploadCleanup>();
 builder.Services.Configure<BillingOptions>(config.GetSection(BillingOptions.Section));
 builder.Services.AddScoped<EntitlementService>();
 builder.Services.AddScoped<SubscriptionService>();
 builder.Services.AddHostedService<SubscriptionWorker>();
 builder.Services.AddSingleton<ISmsSender, LoggingSmsSender>();
+builder.Services.Configure<StorageOptions>(config.GetSection(StorageOptions.Section));
+builder.Services.AddSingleton<LocalDiskStorage>();
+builder.Services.AddSingleton<IFileStorage>(sp => sp.GetRequiredService<LocalDiskStorage>());
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 // ---------- Auth ----------
@@ -104,6 +111,10 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("session", http => RateLimitPartition.GetFixedWindowLimiter(
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = authPerMinute * 10, Window = TimeSpan.FromMinutes(1) }));
+    var uploadsPerMinute = config.GetValue("RateLimits:UploadsPerMinute", 30);
+    o.AddPolicy("uploads", http => RateLimitPartition.GetFixedWindowLimiter(
+        http.User.FindFirst("sub")?.Value ?? http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = uploadsPerMinute, Window = TimeSpan.FromMinutes(1) }));
 });
 
 var app = builder.Build();
@@ -125,6 +136,19 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference(o => o.WithTitle("ServiceHub BD API"));
 }
 app.UseCors();
+// Uploaded images. nosniff stops a browser from treating an image as HTML or script.
+var uploads = app.Services.GetRequiredService<IOptions<StorageOptions>>().Value;
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(app.Services.GetRequiredService<LocalDiskStorage>().Root),
+    RequestPath = "/" + uploads.PublicPath.Trim('/'),
+    ServeUnknownFileTypes = false,
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.XContentTypeOptions = "nosniff";
+        ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+    },
+});
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
