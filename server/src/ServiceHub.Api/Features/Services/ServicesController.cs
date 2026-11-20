@@ -29,17 +29,20 @@ public record UpsertServiceRequest(
     string? PreparationNotes = null,
     string? Policies = null,
     string? InternalNotes = null,
-    List<BookingFieldDto>? BookingFields = null);
+    List<BookingFieldDto>? BookingFields = null,
+    [StringLength(500)] string? ImageUrl = null);
 
 public record ServiceDto(Guid Id, Guid BusinessId, string Name, string Slug, int CategoryId, string? ShortDescription,
     string? Description, PriceType PriceType, decimal? Price, decimal? PriceMax, short DurationMinutes,
     ServiceAvailability Availability, RecordStatus Status, bool IsFeatured, string? PreparationNotes, string? Policies,
-    string? InternalNotes, int BookingCount, decimal AvgRating, DateTime? LastBookedAt, List<BookingFieldDto> BookingFields);
+    string? InternalNotes, int BookingCount, decimal AvgRating, DateTime? LastBookedAt, List<BookingFieldDto> BookingFields,
+    string? ImageUrl);
 
 [ApiController]
 [Authorize]
 [Route("api/businesses/{businessId:guid}/services")]
-public class ServicesController(AppDbContext db, AccessService access, AuditLogger audit, EntitlementService plans) : ControllerBase
+public class ServicesController(AppDbContext db, AccessService access, AuditLogger audit, EntitlementService plans,
+    Page.UploadCleanup cleanup) : ControllerBase
 {
     private const int MaxFeatured = 3;
 
@@ -48,7 +51,8 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
         s.IsFeatured, s.PreparationNotes, s.Policies, includeInternal ? s.InternalNotes : null, s.BookingCount, s.AvgRating,
         s.LastBookedAt,
         s.BookingFields.OrderBy(f => f.SortOrder)
-            .Select(f => new BookingFieldDto(f.Id, f.Label, f.FieldType, f.Options, f.Placeholder, f.IsRequired, f.SortOrder)).ToList());
+            .Select(f => new BookingFieldDto(f.Id, f.Label, f.FieldType, f.Options, f.Placeholder, f.IsRequired, f.SortOrder)).ToList(),
+        s.ImageUrl);
 
     [HttpGet]
     public async Task<ActionResult<List<ServiceDto>>> List(Guid businessId, [FromQuery] RecordStatus? status)
@@ -90,9 +94,11 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
         var fields = req.BookingFields?.Count ?? 0;
         if (fields > s.BookingFields.Count) await plans.RequireCapacityAsync(businessId, E.BookingFieldsMax, 0, fields);
         if (s.Name != req.Name) s.Slug = await UniqueSlugAsync(businessId, req.Name, s.Id);
+        var oldImage = s.ImageUrl;
         await ApplyAsync(s, req);
         audit.Log("service.update", "service", s.Id, businessId: businessId, scope: RoleScope.Business, roleId: member.RoleId);
         await db.SaveChangesAsync();
+        await cleanup.DeleteIfUnusedAsync(businessId, oldImage);
         return ToDto(s, includeInternal: true);
     }
 
@@ -109,7 +115,7 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
             ShortDescription = src.ShortDescription, Description = src.Description, PriceType = src.PriceType, Price = src.Price,
             PriceMax = src.PriceMax, DurationMinutes = src.DurationMinutes, Availability = src.Availability,
             Status = RecordStatus.Inactive, PreparationNotes = src.PreparationNotes, Policies = src.Policies,
-            InternalNotes = src.InternalNotes,
+            InternalNotes = src.InternalNotes, ImageUrl = src.ImageUrl,
             BookingFields = src.BookingFields.Select(f => new ServiceBookingField
             {
                 Label = f.Label, FieldType = f.FieldType, Options = f.Options, Placeholder = f.Placeholder,
@@ -146,6 +152,7 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
             throw new BadRequestException("মূল্য লিখুন।", "price_required");
         if (req.PriceType == PriceType.Range && (req.PriceMax is null || req.PriceMax < req.Price))
             throw new BadRequestException("সর্বোচ্চ মূল্য সর্বনিম্ন মূল্যের চেয়ে বেশি হতে হবে।", "invalid_price_range");
+        ImageUrls.Ensure(req.ImageUrl);
         if (req.IsFeatured && !s.IsFeatured)
         {
             var featured = await db.Services.CountAsync(x => x.BusinessId == s.BusinessId && x.IsFeatured && x.Id != s.Id);
@@ -169,6 +176,7 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
         s.PreparationNotes = req.PreparationNotes;
         s.Policies = req.Policies;
         s.InternalNotes = req.InternalNotes;
+        s.ImageUrl = string.IsNullOrWhiteSpace(req.ImageUrl) ? null : req.ImageUrl;
 
         if (req.BookingFields is not null)
         {
