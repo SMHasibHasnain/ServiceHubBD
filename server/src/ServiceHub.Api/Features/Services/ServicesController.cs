@@ -57,7 +57,7 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
     [HttpGet]
     public async Task<ActionResult<List<ServiceDto>>> List(Guid businessId, [FromQuery] RecordStatus? status)
     {
-        await access.RequireBusinessAsync(businessId, P.BusinessView);
+        await access.RequireBusinessOrStaffAsync(businessId, P.BusinessView);
         var q = db.Services.Include(s => s.BookingFields).Where(s => s.BusinessId == businessId);
         q = status is null ? q.Where(s => s.Status != RecordStatus.Archived) : q.Where(s => s.Status == status);
         var list = await q.OrderByDescending(s => s.IsFeatured).ThenBy(s => s.FeaturedOrder).ThenBy(s => s.Name).ToListAsync();
@@ -67,20 +67,20 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ServiceDto>> Get(Guid businessId, Guid id)
     {
-        await access.RequireBusinessAsync(businessId, P.BusinessView);
+        await access.RequireBusinessOrStaffAsync(businessId, P.BusinessView);
         return ToDto(await LoadAsync(businessId, id), includeInternal: true);
     }
 
     [HttpPost]
     public async Task<ActionResult<ServiceDto>> Create(Guid businessId, UpsertServiceRequest req)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.ServicesManage);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.ServicesManage);
         await plans.RequireCapacityAsync(businessId, E.ServicesMax, await db.Services.CountAsync(x => x.BusinessId == businessId));
         await plans.RequireCapacityAsync(businessId, E.BookingFieldsMax, 0, req.BookingFields?.Count ?? 0);
         var s = new Service { BusinessId = businessId, Slug = await UniqueSlugAsync(businessId, req.Name, null) };
         await ApplyAsync(s, req);
         db.Services.Add(s);
-        audit.Log("service.create", "service", s.Id, businessId: businessId, scope: RoleScope.Business, roleId: member.RoleId);
+        audit.Log("service.create", "service", s.Id, businessId: businessId, scope: member.Scope, roleId: member.RoleId);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(Get), new { businessId, id = s.Id }, ToDto(s, includeInternal: true));
     }
@@ -88,7 +88,7 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<ServiceDto>> Update(Guid businessId, Guid id, UpsertServiceRequest req)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.ServicesManage);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.ServicesManage);
         var s = await LoadAsync(businessId, id);
         // Over-limit forms kept from a bigger plan stay editable; they just can't grow.
         var fields = req.BookingFields?.Count ?? 0;
@@ -96,7 +96,7 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
         if (s.Name != req.Name) s.Slug = await UniqueSlugAsync(businessId, req.Name, s.Id);
         var oldImage = s.ImageUrl;
         await ApplyAsync(s, req);
-        audit.Log("service.update", "service", s.Id, businessId: businessId, scope: RoleScope.Business, roleId: member.RoleId);
+        audit.Log("service.update", "service", s.Id, businessId: businessId, scope: member.Scope, roleId: member.RoleId);
         await db.SaveChangesAsync();
         await cleanup.DeleteIfUnusedAsync(businessId, oldImage);
         return ToDto(s, includeInternal: true);
@@ -105,7 +105,7 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
     [HttpPost("{id:guid}/duplicate")]
     public async Task<ActionResult<ServiceDto>> Duplicate(Guid businessId, Guid id)
     {
-        await access.RequireBusinessAsync(businessId, P.ServicesManage);
+        await access.RequireBusinessOrStaffAsync(businessId, P.ServicesManage);
         await plans.RequireCapacityAsync(businessId, E.ServicesMax, await db.Services.CountAsync(x => x.BusinessId == businessId));
         var src = await LoadAsync(businessId, id);
         var name = src.Name + " (কপি)";
@@ -131,7 +131,7 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid businessId, Guid id)
     {
-        var member = await access.RequireBusinessAsync(businessId, P.ServicesManage);
+        var member = await access.RequireBusinessOrStaffAsync(businessId, P.ServicesManage);
         var s = await LoadAsync(businessId, id);
         var upcoming = await db.Bookings.AnyAsync(b => b.ServiceId == id && b.StartAt > DateTime.UtcNow &&
             (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed));
@@ -139,7 +139,7 @@ public class ServicesController(AppDbContext db, AccessService access, AuditLogg
             throw new ConflictException("এই সেবার আসন্ন বুকিং আছে। আগে সেগুলো সম্পন্ন বা বাতিল করুন, অথবা সেবাটি আর্কাইভ করুন।", "has_upcoming_bookings");
         s.DeletedAt = DateTime.UtcNow;
         s.Status = RecordStatus.Archived;
-        audit.Log("service.delete", "service", s.Id, businessId: businessId, scope: RoleScope.Business, roleId: member.RoleId);
+        audit.Log("service.delete", "service", s.Id, businessId: businessId, scope: member.Scope, roleId: member.RoleId);
         await db.SaveChangesAsync();
         return NoContent();
     }
