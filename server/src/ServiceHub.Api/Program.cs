@@ -37,6 +37,8 @@ builder.Services.Configure<SeedOptions>(config.GetSection(SeedOptions.Section));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 builder.Services.AddScoped<AccessService>();
+builder.Services.AddScoped<ServiceHub.Api.Features.Staff.StaffEdit>();
+builder.Services.AddScoped<ServiceHub.Api.Features.Page.PageDefaults>();
 builder.Services.AddScoped<AuditLogger>();
 builder.Services.AddScoped<Notifier>();
 builder.Services.AddScoped<TokenService>();
@@ -88,7 +90,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // ---------- HTTP ----------
-builder.Services.AddControllers(o => o.ModelBinderProviders.Insert(0, new SnakeCaseEnumBinderProvider()))
+builder.Services.AddControllers(o =>
+    {
+        o.ModelBinderProviders.Insert(0, new SnakeCaseEnumBinderProvider());
+        o.Filters.Add<ServiceHub.Api.Features.Staff.StaffEditFilter>();
+    })
     .AddJsonOptions(o =>
     {
         o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
