@@ -104,8 +104,8 @@ export function AnalyticsToolbar({ days, onChange, from, to, children, maxDays, 
 
 // ---------- KPI tile ----------
 
-export function KpiTile({ label, metric, format = fmt.count, upIsGood = true, deltaMode = "relative", note, icon }: {
-  label: string; metric?: Metric; format?: Fmt; upIsGood?: boolean | null; deltaMode?: "relative" | "points"; note?: ReactNode; icon?: ReactNode;
+export function KpiTile({ label, metric, format = fmt.count, upIsGood = true, deltaMode = "relative", note }: {
+  label: string; metric?: Metric; format?: Fmt; upIsGood?: boolean | null; deltaMode?: "relative" | "points"; note?: ReactNode;
 }) {
   const v = metric?.value ?? 0;
   const prev = metric?.previous;
@@ -131,11 +131,8 @@ export function KpiTile({ label, metric, format = fmt.count, upIsGood = true, de
   }
   return (
     <div className="card flex min-w-0 flex-col gap-1.5 p-4">
-      <div className="flex items-start justify-between gap-2 text-sm text-muted">
-        <span>{label}</span>
-        {icon && <span className="text-zinc-400 [&>svg]:size-4" aria-hidden>{icon}</span>}
-      </div>
-      <span className="truncate text-[26px] leading-tight font-semibold text-ink">{metric ? format(v) : "—"}</span>
+      <span className="text-sm text-muted">{label}</span>
+      <span className="truncate font-display text-[28px] leading-tight font-semibold text-ink tabular-nums">{metric ? format(v) : "—"}</span>
       <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-subtle">
         {delta}{delta && prev != null && !(prev === 0 && deltaMode === "relative") && <span>আগের তুলনায়</span>}{note}
       </span>
