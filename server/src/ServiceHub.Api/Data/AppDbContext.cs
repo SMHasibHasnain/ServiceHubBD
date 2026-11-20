@@ -53,6 +53,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<StaffAction> StaffActions => Set<StaffAction>();
     public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
     public DbSet<PlanEntitlement> PlanEntitlements => Set<PlanEntitlement>();
     public DbSet<BusinessSubscription> BusinessSubscriptions => Set<BusinessSubscription>();
@@ -455,6 +456,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => new { x.ActorId, x.CreatedAt });
             e.HasIndex(x => new { x.BusinessId, x.CreatedAt });
             e.HasIndex(x => x.CreatedAt);
+            e.Property(x => x.Changes).HasJson();
+        });
+        b.Entity<StaffAction>(e =>
+        {
+            e.HasIndex(x => new { x.BusinessId, x.CreatedAt });
+            e.HasIndex(x => new { x.RoleKey, x.CreatedAt });
+            e.HasIndex(x => x.CreatedAt);
+            e.Property(x => x.RoleKey).HasMaxLength(60);
+            e.Property(x => x.Action).HasMaxLength(200);
+            e.Property(x => x.Summary).HasMaxLength(500);
             e.Property(x => x.Changes).HasJson();
         });
 
