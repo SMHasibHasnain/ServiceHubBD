@@ -2439,6 +2439,85 @@ namespace ServiceHub.Api.Data.Migrations
                     b.ToTable("site_contents", (string)null);
                 });
 
+            modelBuilder.Entity("ServiceHub.Api.Domain.Entities.StaffAction", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("action");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_id");
+
+                    b.Property<Guid>("BusinessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("business_id");
+
+                    b.Property<string>("Changes")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("changes");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<short?>("RoleId")
+                        .HasColumnType("smallint")
+                        .HasColumnName("role_id");
+
+                    b.Property<string>("RoleKey")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("role_key");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("summary");
+
+                    b.Property<long?>("UndoOf")
+                        .HasColumnType("bigint")
+                        .HasColumnName("undo_of");
+
+                    b.Property<string>("UndoReason")
+                        .HasColumnType("text")
+                        .HasColumnName("undo_reason");
+
+                    b.Property<DateTime?>("UndoneAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("undone_at");
+
+                    b.Property<Guid?>("UndoneBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("undone_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_staff_actions");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_staff_actions_created_at");
+
+                    b.HasIndex("BusinessId", "CreatedAt")
+                        .HasDatabaseName("ix_staff_actions_business_id_created_at");
+
+                    b.HasIndex("RoleKey", "CreatedAt")
+                        .HasDatabaseName("ix_staff_actions_role_key_created_at");
+
+                    b.ToTable("staff_actions", (string)null);
+                });
+
             modelBuilder.Entity("ServiceHub.Api.Domain.Entities.StaffLeave", b =>
                 {
                     b.Property<Guid>("Id")
