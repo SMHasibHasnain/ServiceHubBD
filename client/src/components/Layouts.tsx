@@ -4,14 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3, Bell, CalendarDays, ClipboardCheck, CreditCard, Eye, Flag, Home, LayoutDashboard, Menu, Package, ScrollText,
   Search, Settings, ShieldCheck, Star, User as UserIcon, Users, UsersRound,
-  Palette, Heart, Briefcase, LayoutTemplate, Tags,
+  Palette, Heart, Briefcase, LayoutTemplate, Tags, Building2, History, ArrowLeft, ShieldAlert,
 } from "lucide-react";
 import { api, session } from "../api/client";
 import type { BusinessDetail, WorkspaceType } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { VERIFICATION_STATUS, bn } from "../lib/format";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
-import { Band, Logo, PetalPattern } from "./brand";
+import { Band, Logo } from "./brand";
 import { str, useSiteText } from "../lib/homeContent";
 
 export { Logo };
@@ -24,7 +24,7 @@ function NotificationBell({ to }: { to: string }) {
   const { workspaces } = useAuth();
   const unread = workspaces.reduce((s, w) => s + w.unreadNotifications, 0);
   return (
-    <Link to={to} className="relative flex size-9 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 hover:text-ink"
+    <Link to={to} className="relative flex size-9 items-center justify-center rounded-md text-zinc-600 transition-colors duration-150 hover:bg-zinc-100 hover:text-ink"
       aria-label={unread ? `নোটিফিকেশন, ${unread}টি নতুন` : "নোটিফিকেশন"}>
       <Bell className="size-[18px]" aria-hidden />
       {unread > 0 && <span className="absolute top-0.5 right-0.5 min-w-4 rounded-full bg-red-600 px-1 text-center font-num text-[10px] font-medium leading-4 text-white">{bn(unread)}</span>}
@@ -54,8 +54,8 @@ function PublicTopbar() {
             </>
           ) : status === "anonymous" ? (
             <>
-              <Link to="/login" className="inline-flex min-h-10 items-center px-3 text-[15px] font-semibold text-ink hover:text-paint-red">{str(t, "login")}</Link>
-              <Link to="/register" className="hidden min-h-10 items-center rounded-full bg-paint-red px-5 text-[15px] font-bold text-cream hover:bg-paint-red-hover sm:inline-flex">{str(t, "register")}</Link>
+              <Link to="/login" className="inline-flex min-h-10 items-center px-3 text-[15px] font-semibold text-ink transition-colors duration-150 hover:text-paint-red">{str(t, "login")}</Link>
+              <Link to="/register" className="hidden min-h-10 items-center rounded-full bg-paint-red px-5 text-[15px] font-semibold text-cream transition-colors duration-150 hover:bg-paint-red-hover sm:inline-flex">{str(t, "register")}</Link>
             </>
           ) : null}
         </div>
@@ -75,7 +75,7 @@ function Footer() {
       {!flush && <Band />}
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="flex flex-col items-start gap-3">
-          <span className="font-display text-[28px] leading-none font-extrabold text-marigold">ServiceHub BD</span>
+          <span className="font-display text-[28px] leading-none font-semibold text-marigold">ServiceHub BD</span>
           <p className="max-w-xs text-sm whitespace-pre-line">{str(t, "footerAbout")}</p>
         </div>
         {[
@@ -84,8 +84,8 @@ function Footer() {
           { title: "ServiceHub BD", links: [["গোপনীয়তা নীতি", "#"], ["শর্তাবলি", "#"], ["যোগাযোগ", "#"]] },
         ].map((col) => (
           <nav key={col.title} aria-label={col.title} className="flex flex-col gap-2.5 text-sm">
-            <span className="font-display text-base font-bold text-cream">{col.title}</span>
-            {col.links.map(([label, to]) => <Link key={label} to={to} className="hover:text-marigold">{label}</Link>)}
+            <span className="font-display text-base font-semibold text-cream">{col.title}</span>
+            {col.links.map(([label, to]) => <Link key={label} to={to} className="transition-colors duration-150 hover:text-marigold">{label}</Link>)}
           </nav>
         ))}
       </div>
@@ -130,11 +130,10 @@ export function CustomerLayout({ wide = false }: { wide?: boolean }) {
     <>
       <SideNav items={CUSTOMER_NAV} header={null} />
       <div className="px-3 pb-4">
-        <div className="relative flex flex-col gap-1.5 overflow-hidden rounded-lg bg-primary p-4 text-sm text-cream">
-          <PetalPattern className="opacity-[0.08]" />
-          <span className="relative font-display text-base font-bold">আপনার কি ব্যবসা আছে?</span>
-          <span className="relative text-[#cfd8ea]">একই অ্যাকাউন্ট থেকে ব্যবসার ডিজিটাল সাইনবোর্ড খুলুন।</span>
-          <Link to="/business/new" className="relative mt-2 inline-flex min-h-9 items-center justify-center rounded-full bg-marigold px-3 font-bold text-ink hover:bg-cream">ব্যবসা পেজ খুলুন</Link>
+        <div className="flex flex-col gap-1 rounded-lg border border-line bg-bg p-4 text-sm">
+          <span className="font-display text-[15px] font-semibold text-ink">আপনার কি ব্যবসা আছে?</span>
+          <span className="text-muted">একই অ্যাকাউন্ট থেকে ব্যবসার ডিজিটাল সাইনবোর্ড খুলুন।</span>
+          <Link to="/business/new" className="mt-2 inline-flex min-h-9 items-center justify-center rounded-md border border-zinc-300 bg-surface px-3 font-semibold text-primary transition-colors duration-150 hover:border-primary/40 hover:bg-primary-light">ব্যবসা পেজ খুলুন</Link>
         </div>
       </div>
     </>
@@ -173,7 +172,8 @@ export function BrowseLayout() {
 
 // ---------- Sidebar workspaces (business / platform) ----------
 
-type NavItem = { to: string; label: string; icon: typeof Home; end?: boolean; permission?: string };
+/** `staffHidden`: not shown to platform staff inside a business (member-only work: bookings, reviews, the day plan). */
+type NavItem = { to: string; label: string; icon: typeof Home; end?: boolean; permission?: string; staffHidden?: boolean };
 
 /**
  * App shell for every signed-in workspace (customer, business, platform). `wide` lets the page set its own width
@@ -214,7 +214,7 @@ function SideNav({ items, permissions, header }: { items: (NavItem & { desktopOn
       {header}
       {items.filter((i) => !i.permission || permissions?.includes(i.permission)).map(({ to, label, icon: Icon, end }) => (
         <NavLink key={to} to={to} end={end}
-          className={({ isActive }) => `flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-medium transition-colors ${isActive ? "bg-primary-light text-primary" : "text-muted hover:bg-zinc-100 hover:text-ink"}`}>
+          className={({ isActive }) => `flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm font-medium transition-colors duration-150 ${isActive ? "bg-primary-light text-primary" : "text-muted hover:bg-zinc-100 hover:text-ink"}`}>
           <Icon className="size-4" aria-hidden />{label}
         </NavLink>
       ))}
@@ -236,19 +236,30 @@ export function BusinessLayout() {
   const { data: biz, error } = useBusiness(businessId);
   const base = `/w/${businessId}`;
   const items: NavItem[] = [
-    { to: base, label: "ড্যাশবোর্ড", icon: LayoutDashboard, end: true },
-    { to: `${base}/my-day`, label: "আমার কাজ", icon: Briefcase },
-    { to: `${base}/bookings`, label: "অ্যাপয়েন্টমেন্ট", icon: CalendarDays },
+    { to: base, label: "ড্যাশবোর্ড", icon: LayoutDashboard, end: true, staffHidden: true },
+    { to: `${base}/my-day`, label: "আমার কাজ", icon: Briefcase, staffHidden: true },
+    { to: `${base}/bookings`, label: "অ্যাপয়েন্টমেন্ট", icon: CalendarDays, staffHidden: true },
     { to: `${base}/customers`, label: "গ্রাহক", icon: Users, permission: "customers.view" },
     { to: `${base}/services`, label: "সেবাসমূহ", icon: Package },
-    { to: `${base}/reviews`, label: "রিভিউ", icon: Star },
+    { to: `${base}/reviews`, label: "রিভিউ", icon: Star, staffHidden: true },
     { to: `${base}/analytics`, label: "বিশ্লেষণ", icon: BarChart3, permission: "analytics.view" },
     { to: `${base}/team`, label: "টিম ও ভূমিকা", icon: UsersRound, permission: "members.view" },
     { to: `${base}/page`, label: "পেজ সাজান", icon: Palette, permission: "business.update" },
     { to: `${base}/settings`, label: "ব্যবসার সেটিংস", icon: Settings, permission: "business.update" },
     { to: `${base}/billing`, label: "সাবস্ক্রিপশন", icon: CreditCard, permission: "billing.manage" },
   ];
+  const { workspaces } = useAuth();
+  const staff = !!biz?.staffRole;
+  // Staff came from their platform workspace: the back link and the switcher point there.
+  const staffHome = workspaces.find((w) => w.type === "administration") ?? workspaces.find((w) => w.type === "moderation");
+  const backTo = staffHome?.type === "administration" ? "/admin/businesses" : "/moderation/businesses";
   const header = biz && (
+    <>
+    {staff && (
+      <Link to={backTo} className="mb-2 flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm font-medium text-zinc-600 transition-colors duration-150 hover:bg-zinc-100 hover:text-ink">
+        <ArrowLeft className="size-4" aria-hidden />সব ব্যবসা
+      </Link>
+    )}
     <div className="mt-1 mb-3 flex items-center gap-2.5 rounded-lg border border-line bg-bg px-2.5 py-2.5">
       <Avatar name={biz.name} className="size-9 text-xs" />
       <div className="min-w-0">
@@ -256,24 +267,35 @@ export function BusinessLayout() {
         <Badge tone={VERIFICATION_STATUS[biz.verificationStatus].tone} className="mt-0.5">{VERIFICATION_STATUS[biz.verificationStatus].label}</Badge>
       </div>
     </div>
+    </>
+  );
+  const canEdit = !!biz?.myPermissions.includes("business.update");
+  const staffNote = staff && biz && (
+    <div role="note" className="mb-6 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+      <span>
+        আপনি <b className="font-semibold">{biz.staffRole}</b> হিসেবে “{biz.name}” দেখছেন।{" "}
+        {canEdit ? "এখানে যা বদলাবেন তা কর্মীদের পরিবর্তনের লগে থাকবে, এ্যাডমিন চাইলে ফিরিয়ে নিতে পারবেন।" : "আপনার শুধু দেখার অনুমতি আছে।"}
+      </span>
+    </div>
   );
   return (
     <Shell
       sidebar={
         <>
-          <SideNav items={items} permissions={biz?.myPermissions} header={header} />
+          <SideNav items={staff ? items.filter((i) => !i.staffHidden) : items} permissions={biz?.myPermissions} header={header} />
           {biz?.status === "published" && (
             <div className="px-3 pb-4">
-              <Link to={`/b/${biz.slug}`} className="flex min-h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-ink">
+              <Link to={`/b/${biz.slug}`} className="flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm font-medium text-zinc-600 transition-colors duration-150 hover:bg-zinc-100 hover:text-ink">
                 <Eye className="size-4" aria-hidden />পাবলিক পেজ দেখুন
               </Link>
             </div>
           )}
         </>
       }
-      topbar={<><div className="min-w-0 flex-1 truncate text-sm font-medium lg:hidden">{biz?.name}</div><div className="ml-auto flex items-center gap-1.5"><NotificationBell to={`${base}/notifications`} /><WorkspaceSwitcher current={{ type: "business", businessId }} /></div></>}
+      topbar={<><div className="min-w-0 flex-1 truncate text-sm font-medium lg:hidden">{biz?.name}</div><div className="ml-auto flex items-center gap-1.5">{!staff && <NotificationBell to={`${base}/notifications`} />}<WorkspaceSwitcher current={staff && staffHome ? { type: staffHome.type } : { type: "business", businessId }} /></div></>}
     >
-      {error ? <div className="card p-8 text-center text-muted">{(error as Error).message}</div> : <Suspense fallback={<PageLoading />}><Outlet context={biz} /></Suspense>}
+      {error ? <div className="card p-8 text-center text-muted">{(error as Error).message}</div> : <>{staffNote}<Suspense fallback={<PageLoading />}><Outlet context={biz} /></Suspense></>}
     </Shell>
   );
 }
@@ -283,6 +305,7 @@ const PLATFORM_NAV: Record<"moderation" | "inspection" | "administration", NavIt
     { to: "/moderation", label: "যাচাইকরণ", icon: ShieldCheck, end: true },
     { to: "/moderation/reports", label: "রিপোর্ট", icon: Flag },
     { to: "/moderation/history", label: "সিদ্ধান্তের ইতিহাস", icon: ScrollText },
+    { to: "/moderation/businesses", label: "সব ব্যবসা", icon: Building2, permission: "businesses.view" },
     { to: "/moderation/analytics", label: "পরিসংখ্যান", icon: BarChart3 },
   ],
   inspection: [
@@ -290,13 +313,16 @@ const PLATFORM_NAV: Record<"moderation" | "inspection" | "administration", NavIt
     { to: "/inspections/analytics", label: "পরিসংখ্যান", icon: BarChart3 },
   ],
   administration: [
-    { to: "/admin", label: "বিশ্লেষণ ড্যাশবোর্ড", icon: LayoutDashboard, end: true },
-    { to: "/admin/users", label: "ব্যবহারকারী", icon: Users },
-    { to: "/admin/roles", label: "ভূমিকা ও অনুমতি", icon: ShieldCheck },
-    { to: "/admin/billing", label: "সাবস্ক্রিপশন ও পেমেন্ট", icon: CreditCard },
+    { to: "/admin", label: "বিশ্লেষণ ড্যাশবোর্ড", icon: LayoutDashboard, end: true, permission: "platform_analytics.view" },
+    { to: "/admin/businesses", label: "সব ব্যবসা", icon: Building2, permission: "businesses.view" },
+    { to: "/admin/staff-log", label: "কর্মীদের পরিবর্তন", icon: History, permission: "audit.view" },
+    { to: "/admin/users", label: "ব্যবহারকারী", icon: Users, permission: "users.view" },
+    { to: "/admin/roles", label: "ভূমিকা ও অনুমতি", icon: ShieldCheck, permission: "roles.assign" },
+    { to: "/admin/billing", label: "সাবস্ক্রিপশন ও পেমেন্ট", icon: CreditCard, permission: "subscriptions.manage" },
     { to: "/admin/homepage", label: "হোমপেজ সম্পাদনা", icon: LayoutTemplate, permission: "site_content.manage" },
+    { to: "/admin/page-defaults", label: "পেজের ডিফল্ট", icon: Palette, permission: "page_defaults.manage" },
     { to: "/admin/categories", label: "ক্যাটাগরি", icon: Tags, permission: "categories.manage" },
-    { to: "/admin/audit", label: "অডিট লগ", icon: ScrollText },
+    { to: "/admin/audit", label: "অডিট লগ", icon: ScrollText, permission: "audit.view" },
   ],
 };
 
@@ -314,7 +340,7 @@ export function PlatformLayout({ type }: { type: "moderation" | "inspection" | "
       topbar={<div className="ml-auto flex gap-2"><WorkspaceSwitcher current={{ type: type as WorkspaceType }} /></div>}
     >
       {status === "authenticated" && workspaces.length > 0 && !allowed
-        ? <div className="card p-8 text-center text-muted">এই অংশে প্রবেশের অনুমতি আপনার নেই।</div>
+        ? <div className="card p-8 text-center text-muted">এই অংশে প্রবেশের অনুমতি আপনার নেই</div>
         : <Suspense fallback={<PageLoading />}><Outlet /></Suspense>}
     </Shell>
   );
