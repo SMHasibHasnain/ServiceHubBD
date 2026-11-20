@@ -81,7 +81,7 @@ public class BillingController(
     [Authorize, HttpGet("api/businesses/{businessId:guid}/plan")]
     public async Task<ActionResult<BusinessPlanDto>> BusinessPlan(Guid businessId)
     {
-        await access.RequireBusinessAsync(businessId, P.BusinessView);
+        await access.RequireBusinessOrStaffAsync(businessId, P.BusinessView);
         var plan = await entitlements.GetAsync(businessId);
         var services = await db.Services.CountAsync(s => s.BusinessId == businessId);
         var members = await entitlements.TeamSizeAsync(businessId);
@@ -91,10 +91,13 @@ public class BillingController(
     }
 
     [Authorize, HttpGet("api/businesses/{businessId:guid}/billing/invoices")]
-    public async Task<ActionResult<List<InvoiceDto>>> Invoices(Guid businessId)
+    public async Task<ActionResult<PagedResult<InvoiceDto>>> Invoices(Guid businessId, [FromQuery] PageQuery paging)
     {
         await access.RequireBusinessAsync(businessId, P.BillingManage);
-        return await InvoiceQuery(db.SubscriptionInvoices.Where(i => i.BusinessId == businessId && i.Status != InvoiceStatus.Void)).ToListAsync();
+        var query = db.SubscriptionInvoices.Where(i => i.BusinessId == businessId && i.Status != InvoiceStatus.Void);
+        var total = await query.CountAsync();
+        var items = await InvoiceQuery(query).Skip(paging.Skip).Take(paging.SafeSize).ToListAsync();
+        return new PagedResult<InvoiceDto>(items, paging.SafePage, paging.SafeSize, total);
     }
 
     /// <summary>Starts buying/renewing/switching a plan: creates the invoice to pay.</summary>
