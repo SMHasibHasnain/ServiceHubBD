@@ -105,3 +105,16 @@ export function BusinessCardView({ b }: { b: Card }) {
     </article>
   );
 }
+
+/** Photos a customer attached to a review; each opens full size in a new tab. */
+export function ReviewPhotos({ photos }: { photos: string[] }) {
+  return (
+    <ul className="flex flex-wrap gap-2" aria-label="রিভিউয়ের ছবি">
+      {photos.map((url, i) => (
+        <li key={url}><a href={url} target="_blank" rel="noopener" aria-label={`ছবি ${bn(i + 1)} বড় করে দেখুন`}>
+          <img src={url} alt="" loading="lazy" className="size-20 rounded-md object-cover hover:opacity-90" />
+        </a></li>
+      ))}
+    </ul>
+  );
+}
