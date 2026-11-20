@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Camera, ClipboardCheck, MapPin, Navigation, Route, Trash2 } from "lucide-react";
 import { api } from "../../api/client";
 import type { InspectionItem, InspectionOutcome, InspectionStatus, Paged } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
-import { Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, Segmented, buttonClass, useToast } from "../../components/ui";
+import { Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PAGE_SIZE, PageHeader, Pagination, Segmented, buttonClass, usePage, useToast } from "../../components/ui";
 import { bn, dateTime, relative, todayBd } from "../../lib/format";
 import { FilePicker } from "../../components/ImageUpload";
 import { MAX_IMAGE_BYTES } from "../../lib/page";
@@ -50,16 +50,24 @@ export default function Inspections() {
   const zones = workspaces.filter((w) => w.type === "inspection").map((w) => w.name.replace("পরিদর্শন — ", "")).join(", ");
   const [status, setStatus] = useState<"" | InspectionStatus>("");
   const [open, setOpen] = useState<InspectionItem | null>(null);
+  const [page, setPage] = usePage(status);
   const list = useQuery({
-    queryKey: ["inspections", status],
-    queryFn: () => api.get<Paged<InspectionItem>>("/api/inspections", { status, pageSize: 100 }),
+    queryKey: ["inspections", status, page],
+    queryFn: () => api.get<Paged<InspectionItem>>("/api/inspections", { status, page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
+  });
+  // Today's route needs every open visit, not just the page on screen.
+  const routeSource = useQuery({
+    queryKey: ["inspections", "route"],
+    queryFn: () => api.get<Paged<InspectionItem>>("/api/inspections", { pageSize: 100 }),
+    enabled: status === "",
   });
 
   return (
     <>
       <PageHeader title="মাঠ পরিদর্শন" subtitle={zones ? `আপনার এলাকা: ${zones}` : "আপনার এলাকার পরিদর্শন কাজ"}
-        actions={status === "" && list.data && (() => {
-          const route = todaysRoute(list.data.items, user?.id);
+        actions={status === "" && routeSource.data && (() => {
+          const route = todaysRoute(routeSource.data.items, user?.id);
           return route.url
             ? <a href={route.url} target="_blank" rel="noopener" className={buttonClass("primary")}><Route className="size-4" aria-hidden />আজকের রুট ({bn(route.count)}টি জায়গা)</a>
             : <span className="text-sm text-subtle">আজ আপনার কোনো পরিদর্শন নেই</span>;
@@ -84,7 +92,8 @@ export default function Inspections() {
             </li>
           ))}
         </ul>
-      ) : <EmptyState icon={<ClipboardCheck className="size-8" aria-hidden />} title="এই মুহূর্তে কোনো পরিদর্শন নেই।" />}
+      ) : <EmptyState icon={<ClipboardCheck className="size-8" aria-hidden />} title="এই মুহূর্তে কোনো পরিদর্শন নেই" />}
+      {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} label="পরিদর্শনের পাতা" />}
       {open && <InspectionPanel item={open} onClose={() => setOpen(null)} />}
     </>
   );
