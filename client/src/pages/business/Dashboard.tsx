@@ -1,10 +1,10 @@
-import { Link, useOutletContext } from "react-router";
-import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CalendarDays, Sparkles, CheckCircle2, Circle, Clock, ImagePlus, Package, Settings, Star, Users, XCircle } from "lucide-react";
+import { Link, Navigate, useOutletContext } from "react-router";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, Circle, Package, Settings, Star, UserPlus, Users } from "lucide-react";
 import { api } from "../../api/client";
 import type { Booking, BusinessAnalytics, BusinessDetail, Paged, Service } from "../../api/types";
 import { KpiTile, LineChart, STATUS_COLOR, VIZ, fmt } from "../../components/charts";
-import { Badge, EmptyState, LinkButton, Skeleton, Stat } from "../../components/ui";
+import { Badge, EmptyState, LinkButton, Pagination, Skeleton, Stat, usePage } from "../../components/ui";
 import { BOOKING_STATUS, VERIFICATION_STATUS, bn, dateLong, timeOnly, todayBd } from "../../lib/format";
 import { daysLeft, useBusinessPlan } from "../../lib/billing";
 
@@ -14,24 +14,29 @@ export default function Dashboard() {
   const biz = useBiz();
   const id = biz?.id;
   const can = (p: string) => !!biz?.myPermissions.includes(p);
+  // Platform staff don't get the member dashboard (bookings and the day's schedule stay with the business's team).
+  const staff = !!biz?.staffRole;
 
   const summary = useQuery({
     queryKey: ["business", id, "summary"],
     queryFn: () => api.get<Record<string, number>>(`/api/businesses/${id}/bookings/summary`),
-    enabled: !!id,
+    enabled: !!id && !staff,
   });
+  const [todayPage, setTodayPage] = usePage();
   const today = useQuery({
-    queryKey: ["business", id, "bookings", "today"],
-    queryFn: () => api.get<Paged<Booking>>(`/api/businesses/${id}/bookings`, { from: todayBd(), to: todayBd(), pageSize: 50 }),
-    enabled: !!id,
+    queryKey: ["business", id, "bookings", "today", todayPage],
+    queryFn: () => api.get<Paged<Booking>>(`/api/businesses/${id}/bookings`, { from: todayBd(), to: todayBd(), page: todayPage, pageSize: 10 }),
+    placeholderData: keepPreviousData,
+    enabled: !!id && !staff,
   });
   const services = useQuery({
     queryKey: ["business", id, "services"],
     queryFn: () => api.get<Service[]>(`/api/businesses/${id}/services`),
-    enabled: !!id,
+    enabled: !!id && !staff,
   });
 
   if (!biz) return <Skeleton className="h-96" />;
+  if (staff) return <Navigate to={can("business.update") ? "settings" : "analytics"} replace />;
   const s = summary.data ?? {};
   const checklist = [
     { done: !!biz.shortDescription || !!biz.description, label: "ব্যবসার বিবরণ", to: "settings" },
@@ -43,21 +48,14 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="bg-brand relative flex flex-wrap items-center justify-between gap-4 overflow-hidden rounded-xl p-5 text-white shadow-lift sm:p-7">
-        <div className="relative min-w-0">
-          <p className="text-sm text-blue-100">{dateLong(new Date().toISOString())}</p>
-          <h1 className="mt-1 truncate text-2xl font-bold sm:text-3xl">স্বাগতম, {biz.name}</h1>
-          <p className="mt-1 text-sm text-blue-100">আজকের ব্যবসার এক নজর</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm text-subtle">{dateLong(new Date().toISOString())}</p>
+          <h1 className="mt-1 truncate text-2xl font-semibold text-ink sm:text-[28px]">{biz.name}</h1>
         </div>
-        <div className="relative flex flex-wrap gap-2">
-          {(s.pending_all ?? 0) > 0 && (
-            <Link to="bookings?status=pending" className="inline-flex min-h-11 items-center rounded-md bg-white px-4 text-sm font-semibold text-brand-navy shadow-lift hover:bg-blue-50">
-              অপেক্ষমাণ বুকিং ({bn(s.pending_all)})
-            </Link>
-          )}
-          {biz.status === "published" && (
-            <Link to={`/b/${biz.slug}`} className="inline-flex min-h-11 items-center rounded-md border border-white/30 px-4 text-sm font-semibold text-white hover:bg-white/10">পাবলিক পেজ</Link>
-          )}
+        <div className="flex flex-wrap gap-2">
+          {biz.status === "published" && <LinkButton to={`/b/${biz.slug}`} variant="outline">পাবলিক পেজ</LinkButton>}
+          {(s.pending_all ?? 0) > 0 && <LinkButton to="bookings?status=pending">অপেক্ষমাণ বুকিং ({bn(s.pending_all)})</LinkButton>}
         </div>
       </div>
 
@@ -93,12 +91,12 @@ export default function Dashboard() {
       )}
 
       <section aria-label="আজকের পরিসংখ্যান" className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-        <Stat label="আজকের অ্যাপয়েন্টমেন্ট" value={bn(s.today ?? 0)} icon={<CalendarDays className="size-[18px]" />} />
-        <Stat label="অপেক্ষমাণ" value={bn(s.pending_all ?? 0)} tone="amber" icon={<Clock className="size-[18px]" />} note="সব দিনের" />
-        <Stat label="নিশ্চিত (আজ)" value={bn(s.confirmed ?? 0)} tone="blue" icon={<CheckCircle2 className="size-[18px]" />} />
-        <Stat label="সম্পন্ন (আজ)" value={bn(s.completed ?? 0)} tone="green" icon={<CheckCircle2 className="size-[18px]" />} />
-        <Stat label="বাতিল (আজ)" value={bn((s.cancelled ?? 0) + (s.rejected ?? 0))} tone="red" icon={<XCircle className="size-[18px]" />} />
-        <Stat label="গড় রেটিং" value={biz.reviewCount ? bn(biz.avgRating) : "—"} tone="amber" icon={<Star className="size-[18px]" />} note={`${bn(biz.reviewCount)} রিভিউ`} />
+        <Stat label="আজকের অ্যাপয়েন্টমেন্ট" value={bn(s.today ?? 0)} />
+        <Stat label="অপেক্ষমাণ" value={bn(s.pending_all ?? 0)} note="সব দিনের" />
+        <Stat label="নিশ্চিত (আজ)" value={bn(s.confirmed ?? 0)} />
+        <Stat label="সম্পন্ন (আজ)" value={bn(s.completed ?? 0)} />
+        <Stat label="বাতিল (আজ)" value={bn((s.cancelled ?? 0) + (s.rejected ?? 0))} />
+        <Stat label="গড় রেটিং" value={biz.reviewCount ? bn(biz.avgRating) : "—"} note={`${bn(biz.reviewCount)} রিভিউ`} />
       </section>
 
       {can("analytics.view") && <WeekSnapshot businessId={biz.id} />}
@@ -113,8 +111,8 @@ export default function Dashboard() {
             <ol className="flex flex-col gap-2">
               {today.data.items.map((b) => (
                 <li key={b.id}>
-                  <Link to={`bookings?open=${b.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-line px-4 py-2.5 text-sm hover:bg-zinc-50">
-                    <span className="w-16 font-num text-sm text-subtle">{timeOnly(b.startAt)}</span>
+                  <Link to={`bookings?open=${b.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-line px-4 py-2.5 text-sm transition-colors duration-150 hover:bg-zinc-50">
+                    <span className="w-16 font-num text-sm text-subtle tabular-nums">{timeOnly(b.startAt)}</span>
                     <span className="min-w-0 flex-1"><span className="font-medium">{b.customerName}</span> <span className="text-muted">· {b.serviceName}</span>
                       {b.assignedTo && <span className="block text-sm text-subtle">টেকনিশিয়ান: {b.assignedTo.name}</span>}</span>
                     <Badge tone={BOOKING_STATUS[b.status].tone}>{BOOKING_STATUS[b.status].label}</Badge>
@@ -122,8 +120,12 @@ export default function Dashboard() {
                 </li>
               ))}
             </ol>
-          ) : (
-            <EmptyState title="আজ কোনো অ্যাপয়েন্টমেন্ট নেই।" description={biz.status === "published" ? "আপনার পাবলিক পেজটি শেয়ার করুন যাতে গ্রাহকরা বুক করতে পারেন।" : "পেজ প্রকাশিত হলে গ্রাহকরা বুক করতে পারবেন।"} />
+          ) : null}
+          {today.data && today.data.items.length > 0 && (
+            <Pagination page={todayPage} total={today.data.total} pageSize={10} onChange={setTodayPage} scrollTop={false} label="আজকের সময়সূচির পাতা" />
+          )}
+          {today.isLoading || today.data?.items.length ? null : (
+            <EmptyState title="আজ কোনো অ্যাপয়েন্টমেন্ট নেই" description={biz.status === "published" ? "আপনার পাবলিক পেজটি শেয়ার করুন যাতে গ্রাহকরা বুক করতে পারেন।" : "পেজ প্রকাশিত হলে গ্রাহকরা বুক করতে পারবেন।"} />
           )}
         </section>
 
@@ -136,9 +138,9 @@ export default function Dashboard() {
               { to: "customers", label: "গ্রাহক ব্যবস্থাপনা", icon: Users, show: can("customers.view") },
               { to: "reviews", label: "রিভিউর উত্তর দিন", icon: Star, show: true },
               { to: "settings", label: "ব্যবসার তথ্য", icon: Settings, show: can("business.update") },
-              { to: "team", label: "টিম সদস্য যোগ করুন", icon: ImagePlus, show: can("members.manage") },
+              { to: "team", label: "টিম সদস্য যোগ করুন", icon: UserPlus, show: can("members.manage") },
             ].filter((q) => q.show).map(({ to, label, icon: Icon }) => (
-              <Link key={to} to={to} className="flex min-h-10 items-center gap-3 rounded-md px-3 text-sm hover:bg-zinc-100">
+              <Link key={to} to={to} className="flex min-h-9 items-center gap-2.5 rounded-md px-3 text-sm transition-colors duration-150 hover:bg-zinc-100">
                 <Icon className="size-4 text-zinc-400" aria-hidden />
                 <span className="flex-1">{label}</span>
                 <span className="text-zinc-300" aria-hidden>→</span>
@@ -187,14 +189,14 @@ function WeekSnapshot({ businessId }: { businessId: string }) {
 function PlanBanner({ businessId }: { businessId: string }) {
   const { data: p } = useBusinessPlan(businessId);
   if (!p) return null;
-  let tone = "border-blue-200 bg-blue-50/60", text: string;
+  let tone = "border-primary/15 bg-primary-light/60", text: string;
   if (p.isTrial) text = `${p.planName} ট্রায়াল চলছে — আর ${bn(daysLeft(p.trialEndsAt))} দিন বাকি। ট্রায়াল শেষে ফ্রি প্ল্যান চালু হবে।`;
   else if (p.status === "past_due") { tone = "border-amber-200 bg-amber-50"; text = `প্ল্যানের নবায়ন বাকি — ${bn(daysLeft(p.graceEndsAt))} দিনের মধ্যে নবায়ন না করলে ফ্রি প্ল্যানে চলে যাবে।`; }
   else if (p.isPaid && p.cancelAtPeriodEnd) text = `${p.planName} প্ল্যান ${bn(daysLeft(p.currentPeriodEnd))} দিন পর শেষ হবে।`;
   else return null;
   return (
     <div className={`flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 text-sm ${tone}`}>
-      <Sparkles className="size-4 shrink-0 text-primary" aria-hidden />
+      <CalendarClock className="size-4 shrink-0 text-muted" aria-hidden />
       <span className="flex-1">{text}</span>
       <Link to="billing" className="font-semibold text-primary hover:text-primary-hover">প্ল্যান দেখুন →</Link>
     </div>
