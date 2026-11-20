@@ -34,7 +34,8 @@ public record NotificationDto(Guid Id, WorkspaceType Workspace, Guid? BusinessId
 [ApiController]
 [Authorize]
 [Route("api/me")]
-public class MeController(AppDbContext db, ICurrentUser me, AccessService access) : ControllerBase
+public class MeController(AppDbContext db, ICurrentUser me, AccessService access, IFileStorage storage,
+    Microsoft.Extensions.Options.IOptions<StorageOptions> storageOptions) : ControllerBase
 {
     /// <summary>Permissions that open a platform workspace regardless of the role's primary one.</summary>
     private static readonly Dictionary<string, WorkspaceType> WorkspaceByPermission = new()
@@ -190,6 +191,33 @@ public class MeController(AppDbContext db, ICurrentUser me, AccessService access
     public async Task<ActionResult<List<Guid>>> Favourites() =>
         await db.Favourites.Where(f => f.UserId == me.RequireId()).OrderByDescending(f => f.CreatedAt)
             .Select(f => f.BusinessId).ToListAsync();
+
+    /// <summary>My saved businesses as cards (only ones still published), newest saved first.</summary>
+    [HttpGet("favourites/businesses")]
+    public async Task<ActionResult<List<Businesses.BusinessCardDto>>> FavouriteBusinesses()
+    {
+        var userId = me.RequireId();
+        return await db.Favourites.Where(f => f.UserId == userId && f.Business.Status == BusinessStatus.Published)
+            .OrderByDescending(f => f.CreatedAt).Select(f => f.Business)
+            .Select(b => new Businesses.BusinessCardDto(b.Id, b.Name, b.Slug, b.LogoUrl, b.CoverUrl, b.CategoryId, b.Category.NameBn,
+                b.Zone != null ? b.Zone.NameBn : null, b.AvgRating, b.ReviewCount,
+                b.Services.Where(s => s.Status == RecordStatus.Active && s.Price != null).Min(s => s.Price),
+                b.OffersHomeService, b.OffersEmergencyService, b.VerificationStatus == VerificationStatus.Approved))
+            .ToListAsync();
+    }
+
+    /// <summary>A photo for something I write (review photos). Stored in my own folder; only I can attach it.</summary>
+    [HttpPost("uploads")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("uploads")]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 6 * 1024 * 1024)]
+    public async Task<ActionResult<Page.UploadResult>> Upload(CancellationToken ct)
+    {
+        var (url, _) = await storage.SaveAsync(Request, UserFolder(me.RequireId()), storageOptions.Value.MaxImageBytes, ct);
+        return new Page.UploadResult(url);
+    }
+
+    public static string UserFolder(Guid userId) => $"user-{userId}";
 
     [HttpPut("favourites/{businessId:guid}")]
     public async Task<IActionResult> AddFavourite(Guid businessId)
