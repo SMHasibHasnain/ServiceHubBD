@@ -6,7 +6,7 @@ import { api } from "../../api/client";
 import type { Invitation, Member, User } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { ZonePicker } from "../../components/shared";
-import { Badge, Button, ErrorBox, PageHeader, useToast } from "../../components/ui";
+import { Badge, Button, ErrorBox, PageHeader, Pagination, useClientPage, useToast } from "../../components/ui";
 
 export default function Profile() {
   const { user, setUser } = useAuth();
@@ -31,6 +31,7 @@ export default function Profile() {
   });
 
   const invitations = useQuery({ queryKey: ["me", "invitations"], queryFn: () => api.get<Invitation[]>("/api/me/invitations") });
+  const invitePage = useClientPage(invitations.data, null, 5);
   const accept = useMutation({
     mutationFn: () => api.post<Member>("/api/invitations/accept", { token: code.trim() }),
     onSuccess: () => {
@@ -75,12 +76,13 @@ export default function Profile() {
         <section className="card flex flex-col gap-4 p-6">
           <h2 className="text-base font-semibold">টিম আমন্ত্রণ</h2>
           <p className="text-muted">কোনো ব্যবসা আপনাকে টিম সদস্য হিসেবে যোগ করলে SMS-এ একটি কোড পাবেন। এখানে দিন।</p>
-          {invitations.data?.map((i) => (
+          {invitePage.items.map((i) => (
             <div key={i.id} className="rounded-md border border-line p-4">
               <div className="font-semibold">{i.businessName}</div>
               <div className="text-[15px] text-muted">ভূমিকা: {i.roleName}</div>
             </div>
           ))}
+          <Pagination page={invitePage.page} total={invitePage.total} pageSize={invitePage.pageSize} onChange={invitePage.setPage} scrollTop={false} label="আমন্ত্রণের পাতা" className="mt-0" />
           <ErrorBox error={accept.error} />
           <div className="flex flex-wrap gap-2">
             <input className="input flex-1" value={code} onChange={(e) => setCode(e.target.value)} placeholder="আমন্ত্রণ কোড" aria-label="আমন্ত্রণ কোড" />
