@@ -106,8 +106,8 @@ public class FieldWorkTests(ApiFactory factory)
         var leave = await staff.PostAsync($"/api/businesses/{businessId}/leaves", new { startDate = tomorrow, endDate = tomorrow, reason = "পারিবারিক কাজ" }).ExpectJson();
         await staff.PostAsync($"/api/businesses/{businessId}/leaves", new { startDate = tomorrow, endDate = tomorrow }).ExpectStatus(409, "leave_overlaps");
         await staff.PostAsync($"/api/businesses/{businessId}/leaves/{leave.Id()}/approve", new { }).ExpectStatus(403);
-        Assert.NotNull((await owner.GetJson($"/api/businesses/{businessId}/leaves")).FindById(leave.Id()));
-        Assert.Single((await staff.GetJson($"/api/businesses/{businessId}/leaves")).AsArray()); // staff see only their own
+        Assert.NotNull((await owner.GetJson($"/api/businesses/{businessId}/leaves"))["items"].FindById(leave.Id()));
+        Assert.Single((await staff.GetJson($"/api/businesses/{businessId}/leaves"))["items"]!.AsArray()); // staff see only their own
 
         await owner.PostAsync($"/api/businesses/{businessId}/leaves/{leave.Id()}/approve", new { note = "ঠিক আছে" }).ExpectStatus(200);
         Assert.Null((await owner.GetJson($"/api/businesses/{businessId}/bookings/{bookingId}"))["assignedTo"]);
@@ -132,7 +132,8 @@ public class FieldWorkTests(ApiFactory factory)
         // Saved businesses page and notice alerts for followers (once per notice).
         await customer.PutAsync($"/api/me/favourites/{businessId}", new { }).ExpectStatus(204);
         var saved = await customer.GetJson("/api/me/favourites/businesses");
-        Assert.NotNull(saved.FindById(businessId));
+        Assert.NotNull(saved["items"].FindById(businessId));
+        Assert.Equal(1, saved["total"]!.GetValue<int>());
         var notice = await owner.PostAsync($"/api/businesses/{businessId}/page/notices", new { title = "নতুন অফার", body = "এই সপ্তাহে ১০% ছাড়।" }).ExpectJson();
         await owner.PutAsync($"/api/businesses/{businessId}/page/notices/{notice.Id()}", new { title = "নতুন অফার!", body = "এই সপ্তাহে ১০% ছাড়।" }).ExpectStatus(200);
         await factory.WithDbAsync(async db => Assert.Equal(1, await db.Notifications.CountAsync(n =>
