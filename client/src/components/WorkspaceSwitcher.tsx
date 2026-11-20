@@ -60,7 +60,7 @@ export function WorkspaceSwitcher({ current }: { current: { type: WorkspaceType;
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface py-1 pr-2 pl-1 shadow-soft hover:bg-zinc-50"
+        className="flex h-9 items-center gap-2 rounded-md border border-line bg-surface py-1 pr-2 pl-1 shadow-soft transition-colors duration-150 hover:bg-zinc-50"
       >
         <span className="relative">
           <Avatar name={active?.name ?? user?.fullName ?? "?"} tone={TONES[active?.type ?? "customer"]} className="size-7 text-xs" />
@@ -86,7 +86,7 @@ export function WorkspaceSwitcher({ current }: { current: { type: WorkspaceType;
             if (items.length === 0) return null;
             return (
               <div key={g.label}>
-                <div className="px-2.5 pt-2.5 pb-1 text-[11px] font-medium tracking-wide text-subtle uppercase">{g.label}</div>
+                <div className="px-2.5 pt-3 pb-1 text-xs font-medium text-subtle">{g.label}</div>
                 {items.map((w) => (
                   <button
                     key={`${w.type}-${w.businessId ?? w.zoneId ?? w.roleKey}`}
