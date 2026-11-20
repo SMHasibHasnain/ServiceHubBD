@@ -214,10 +214,12 @@ function Success({ booking }: { booking: BookingDto }) {
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-4 px-4 py-16 text-center">
       <SuccessArt className="size-36" />
-      <h1 className="text-2xl font-bold text-brand-navy sm:text-3xl">আপনার বুকিং সফলভাবে সম্পন্ন হয়েছে।</h1>
-      <p className="text-muted">{booking.businessName} আপনার অনুরোধ পেয়েছে। নিশ্চিত হলে আপনাকে জানানো হবে।</p>
+      <h1 className="text-2xl font-semibold text-primary sm:text-[28px]">{booking.status === "confirmed" ? "বুকিং নিশ্চিত হয়েছে" : "বুকিংয়ের অনুরোধ পাঠানো হয়েছে"}</h1>
+      <p className="text-muted">{booking.status === "confirmed"
+        ? `${booking.businessName} আপনার সময়টি নিশ্চিত করেছে।`
+        : `${booking.businessName} আপনার অনুরোধ পেয়েছে। নিশ্চিত হলে আপনাকে জানানো হবে।`}</p>
       <div className="card grid w-full grid-cols-2 gap-3 p-5 text-left">
-        <div><div className="text-sm text-subtle">বুকিং নম্বর</div><div className="font-num font-semibold">{booking.bookingNumber}</div></div>
+        <div><div className="text-sm text-subtle">বুকিং নম্বর</div><div className="font-num font-semibold tabular-nums">{booking.bookingNumber}</div></div>
         <div><div className="text-sm text-subtle">অবস্থা</div><Badge tone={booking.status === "confirmed" ? "blue" : "amber"}>{booking.status === "confirmed" ? "নিশ্চিত" : "নিশ্চিতকরণের অপেক্ষায়"}</Badge></div>
         <div><div className="text-sm text-subtle">সেবা</div><div className="font-semibold">{booking.serviceName}</div></div>
         <div><div className="text-sm text-subtle">সময়</div><div className="font-semibold">{dateLong(booking.startAt)}</div></div>
