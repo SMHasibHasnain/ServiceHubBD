@@ -108,7 +108,8 @@ async function toError(res: Response): Promise<ApiError> {
 
 async function request<T>(method: string, path: string, body?: unknown, query?: Query, retry = true): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const isForm = body instanceof FormData;
+  if (body !== undefined && !isForm) headers["Content-Type"] = "application/json";
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
   let res: Response;
@@ -116,7 +117,7 @@ async function request<T>(method: string, path: string, body?: unknown, query?: 
     res = await fetch(buildUrl(path, query), {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, "network", navigator.onLine ? "সার্ভারের সাথে সংযোগ করা যাচ্ছে না।" : "আপনি বর্তমানে অফলাইনে আছেন।");
@@ -138,4 +139,11 @@ export const api = {
   put: <T = void>(path: string, body: unknown) => request<T>("PUT", path, body),
   patch: <T = void>(path: string, body: unknown) => request<T>("PATCH", path, body),
   del: <T = void>(path: string) => request<T>("DELETE", path),
+  /** Uploads one file as multipart/form-data under the field name "file", plus optional text fields. */
+  upload: <T = { url: string }>(path: string, file: File, fields?: Record<string, string>) => {
+    const form = new FormData();
+    form.append("file", file);
+    for (const [k, v] of Object.entries(fields ?? {})) form.append(k, v);
+    return request<T>("POST", path, form);
+  },
 };
