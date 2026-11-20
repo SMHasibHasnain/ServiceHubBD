@@ -4,8 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3, Bell, CalendarDays, ClipboardCheck, CreditCard, Eye, Flag, Home, LayoutDashboard, Menu, Package, ScrollText,
   Search, Settings, ShieldCheck, Star, User as UserIcon, Users, UsersRound,
+  Palette, Heart, Briefcase,
 } from "lucide-react";
-import { api } from "../api/client";
+import { api, session } from "../api/client";
 import type { BusinessDetail, WorkspaceType } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { VERIFICATION_STATUS, bn } from "../lib/format";
@@ -104,49 +105,75 @@ const CUSTOMER_NAV = [
   { to: "/", label: "হোম", icon: Home, end: true },
   { to: "/search", label: "অনুসন্ধান", icon: Search },
   { to: "/me/bookings", label: "বুকিং", icon: CalendarDays },
+  { to: "/me/saved", label: "সংরক্ষিত", icon: Heart, desktopOnly: true },
   { to: "/me/notifications", label: "নোটিফিকেশন", icon: Bell },
   { to: "/me/profile", label: "প্রোফাইল", icon: UserIcon },
 ];
 
-/** Customer workspace: side nav on desktop, bottom navigation on mobile. */
-export function CustomerLayout() {
+/**
+ * Customer workspace in the same `Shell` as business and platform workspaces: sidebar at the screen edge,
+ * full-width topbar, readable content width. Phones also get a bottom bar, but only on `/me/...` pages: the
+ * business profile and booking wizard have their own fixed bottom "book" bar, and the drawer still has the menu.
+ */
+export function CustomerLayout({ wide = false }: { wide?: boolean }) {
+  const { pathname } = useLocation();
+  const bottomBar = pathname.startsWith("/me/");
+  const sidebar = (
+    <>
+      <SideNav items={CUSTOMER_NAV} header={null} />
+      <div className="px-3 pb-4">
+        <div className="bg-brand relative flex flex-col gap-1.5 overflow-hidden rounded-lg p-4 text-sm text-white shadow-card">
+          <div className="absolute -right-6 -bottom-8 size-24 rounded-full bg-brand-lime/30" aria-hidden />
+          <span className="font-display text-base font-semibold">আপনার কি ব্যবসা আছে?</span>
+          <span className="text-blue-100">একই অ্যাকাউন্ট থেকে ব্যবসা পেজ তৈরি করুন</span>
+          <Link to="/business/new" className="relative mt-2 inline-flex min-h-9 items-center justify-center rounded-md bg-white px-3 font-semibold text-brand-navy hover:bg-blue-50">ব্যবসা পেজ তৈরি করুন →</Link>
+        </div>
+      </div>
+    </>
+  );
   return (
-    <div className="flex min-h-dvh flex-col">
-      <PublicTopbar />
-      <div className="mx-auto flex w-full max-w-6xl flex-1 gap-10 px-4 pt-8 pb-24 sm:px-6 md:pb-10">
-        <nav aria-label="গ্রাহক মেনু" className="hidden w-48 shrink-0 flex-col gap-0.5 md:flex">
-          {CUSTOMER_NAV.map(({ to, label, icon: Icon, end }) => (
+    <>
+      <Shell wide={wide} bottomPadding={bottomBar} sidebar={sidebar}
+        topbar={<div className="ml-auto flex items-center gap-1.5"><NotificationBell to="/me/notifications" /><WorkspaceSwitcher current={{ type: "customer" }} /></div>}>
+        <Suspense fallback={<PageLoading />}><Outlet /></Suspense>
+      </Shell>
+      {bottomBar && (
+        <nav aria-label="নিচের মেনু" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
+          {/* The bottom bar has room for five; "saved" is reached from My bookings on phones. */}
+          {CUSTOMER_NAV.filter((n) => !n.desktopOnly).map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end}
-              className={({ isActive }) => `flex min-h-10 items-center gap-2.5 rounded-md px-3 text-sm font-medium transition-colors ${isActive ? "bg-primary-light text-primary" : "text-muted hover:bg-zinc-100 hover:text-ink"}`}>
-              <Icon className="size-4" aria-hidden />{label}
+              className={({ isActive }) => `group flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium ${isActive ? "text-primary" : "text-subtle"}`}>
+              {({ isActive }) => <><span className={`flex h-7 w-12 items-center justify-center rounded-full transition-colors ${isActive ? "bg-primary-light" : ""}`}><Icon className="size-5" aria-hidden /></span>{label}</>}
             </NavLink>
           ))}
-          <div className="bg-brand relative mt-6 flex flex-col gap-1.5 overflow-hidden rounded-lg p-4 text-sm text-white shadow-card">
-            <div className="absolute -right-6 -bottom-8 size-24 rounded-full bg-brand-lime/30" aria-hidden />
-            <span className="font-display text-base font-semibold">আপনার কি ব্যবসা আছে?</span>
-            <span className="text-blue-100">একই অ্যাকাউন্ট থেকে ব্যবসা পেজ তৈরি করুন</span>
-            <Link to="/business/new" className="relative mt-2 inline-flex min-h-9 items-center justify-center rounded-md bg-white px-3 font-semibold text-brand-navy hover:bg-blue-50">ব্যবসা পেজ তৈরি করুন →</Link>
-          </div>
         </nav>
-        <main className="min-w-0 flex-1"><Suspense fallback={<PageLoading />}><Outlet /></Suspense></main>
-      </div>
-      <nav aria-label="নিচের মেনু" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
-        {CUSTOMER_NAV.map(({ to, label, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end}
-            className={({ isActive }) => `group flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium ${isActive ? "text-primary" : "text-subtle"}`}>
-            {({ isActive }) => <><span className={`flex h-7 w-12 items-center justify-center rounded-full transition-colors ${isActive ? "bg-primary-light" : ""}`}><Icon className="size-5" aria-hidden /></span>{label}</>}
-          </NavLink>
-        ))}
-      </nav>
-    </div>
+      )}
+    </>
   );
+}
+
+/**
+ * Search, business profiles and the booking wizard: guests get the public topbar and footer; signed-in people keep
+ * their customer sidebar. While the session is still loading, a stored refresh token predicts the outcome, so the
+ * page doesn't flash from one layout to the other.
+ */
+export function BrowseLayout() {
+  const { status } = useAuth();
+  const signedIn = status === "authenticated" || (status === "loading" && !!session.refreshToken());
+  return signedIn ? <CustomerLayout wide /> : <PublicLayout />;
 }
 
 // ---------- Sidebar workspaces (business / platform) ----------
 
 type NavItem = { to: string; label: string; icon: typeof Home; end?: boolean; permission?: string };
 
-function Shell({ sidebar, topbar, children }: { sidebar: ReactNode; topbar: ReactNode; children: ReactNode }) {
+/**
+ * App shell for every signed-in workspace (customer, business, platform). `wide` lets the page set its own width
+ * and padding (public pages shown inside the shell); `bottomPadding` leaves room for a phone bottom bar.
+ */
+function Shell({ sidebar, topbar, children, wide = false, bottomPadding = false }: {
+  sidebar: ReactNode; topbar: ReactNode; children: ReactNode; wide?: boolean; bottomPadding?: boolean;
+}) {
   const [drawer, setDrawer] = useState(false);
   const location = useLocation();
   useEffect(() => setDrawer(false), [location.pathname]);
@@ -166,13 +193,13 @@ function Shell({ sidebar, topbar, children }: { sidebar: ReactNode; topbar: Reac
           </button>
           {topbar}
         </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-8">{children}</main>
+        <main className={`${wide ? "w-full" : "mx-auto w-full max-w-6xl px-4 py-8 sm:px-8"} flex-1 ${bottomPadding ? "pb-24 md:pb-8" : ""}`}>{children}</main>
       </div>
     </div>
   );
 }
 
-function SideNav({ items, permissions, header }: { items: NavItem[]; permissions?: string[]; header: ReactNode }) {
+function SideNav({ items, permissions, header }: { items: (NavItem & { desktopOnly?: boolean })[]; permissions?: string[]; header: ReactNode }) {
   return (
     <nav className="flex flex-col gap-0.5 p-3" aria-label="ওয়ার্কস্পেস মেনু">
       <div className="flex h-12 items-center px-2 pb-2"><Logo to="/me/bookings" /></div>
@@ -202,12 +229,14 @@ export function BusinessLayout() {
   const base = `/w/${businessId}`;
   const items: NavItem[] = [
     { to: base, label: "ড্যাশবোর্ড", icon: LayoutDashboard, end: true },
+    { to: `${base}/my-day`, label: "আমার কাজ", icon: Briefcase },
     { to: `${base}/bookings`, label: "অ্যাপয়েন্টমেন্ট", icon: CalendarDays },
     { to: `${base}/customers`, label: "গ্রাহক", icon: Users, permission: "customers.view" },
     { to: `${base}/services`, label: "সেবাসমূহ", icon: Package },
     { to: `${base}/reviews`, label: "রিভিউ", icon: Star },
     { to: `${base}/analytics`, label: "বিশ্লেষণ", icon: BarChart3, permission: "analytics.view" },
     { to: `${base}/team`, label: "টিম ও ভূমিকা", icon: UsersRound, permission: "members.view" },
+    { to: `${base}/page`, label: "পেজ সাজান", icon: Palette, permission: "business.update" },
     { to: `${base}/settings`, label: "ব্যবসার সেটিংস", icon: Settings, permission: "business.update" },
     { to: `${base}/billing`, label: "সাবস্ক্রিপশন", icon: CreditCard, permission: "billing.manage" },
   ];
