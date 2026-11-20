@@ -11,8 +11,24 @@ namespace ServiceHub.Api.Access;
 /// business (business_members), platform (assignment without zone) and zone
 /// (assignment whose geo_zones subtree contains the target business).
 /// </summary>
-public class AccessService(AppDbContext db, ICurrentUser me)
+/// <summary>
+/// Who is acting on a business: a member (<see cref="Member"/> set) or platform staff without membership.
+/// <see cref="RoleId"/> and <see cref="Scope"/> are what to write to the audit log.
+/// </summary>
+public record BusinessActor(Guid BusinessId, Guid UserId, BusinessMember? Member, short? RoleId, RoleScope Scope, short Rank,
+    string? StaffRoleKey, string? StaffRoleName)
 {
+    public bool IsStaff => Member is null;
+}
+
+public class AccessService(AppDbContext db, ICurrentUser me, Features.Staff.StaffEdit staffEdit)
+{
+    /// <summary>
+    /// Staff act just below the owner: they can manage every team role but never the owner, who can't be removed
+    /// or demoted and whose ownership is only transferred.
+    /// </summary>
+    public const short StaffRank = 99;
+
     // ---------------- business scope ----------------
 
     /// <summary>
@@ -48,6 +64,67 @@ public class AccessService(AppDbContext db, ICurrentUser me)
             .OrderBy(k => k)
             .ToArrayAsync();
 
+    /// <summary>
+    /// Like <see cref="RequireBusinessAsync"/>, but platform staff who aren't members can also get in through
+    /// <see cref="P.StaffGrants"/>. Members always use their own role (no staff fallback: conflict of interest).
+    /// A staff write starts a <see cref="Features.Staff.StaffEdit"/>, which logs the change for undo.
+    /// </summary>
+    public async Task<BusinessActor> RequireBusinessOrStaffAsync(Guid businessId, string permission)
+    {
+        var userId = me.RequireId();
+        var member = await db.BusinessMembers.Include(m => m.Role)
+            .FirstOrDefaultAsync(m => m.BusinessId == businessId && m.UserId == userId && m.Status != MemberStatus.Removed);
+        if (member is not null)
+        {
+            if (member.Status != MemberStatus.Active) throw new NotFoundException("ব্যবসাটি পাওয়া যায়নি।", "business_not_found");
+            if (!await db.RolePermissions.AnyAsync(rp => rp.RoleId == member.RoleId && rp.Permission.Key == permission))
+                throw new ForbiddenException();
+            return new BusinessActor(businessId, userId, member, member.RoleId, RoleScope.Business, member.Role.Rank, null, null);
+        }
+
+        var role = await StaffRoleAsync(businessId, permission)
+                   ?? throw new NotFoundException("ব্যবসাটি পাওয়া যায়নি।", "business_not_found");
+        await staffEdit.BeginAsync(businessId, userId, role.Id, role.Key);
+        return new BusinessActor(businessId, userId, null, role.Id, RoleScope.Platform, StaffRank, role.Key, role.NameBn);
+    }
+
+    public record StaffRole(short Id, string Key, string NameBn, short Rank);
+
+    /// <summary>The highest platform role that gives the current (non-member) user <paramref name="permission"/> on this business.</summary>
+    public async Task<StaffRole?> StaffRoleAsync(Guid businessId, string permission, bool includeDeleted = false)
+    {
+        if (!P.StaffGrants.TryGetValue(permission, out var grants)) return null;
+        StaffRole? best = null;
+        foreach (var grant in grants)
+        {
+            var role = await CoveringAssignments(grant, businessId, includeDeleted)
+                .OrderByDescending(a => a.Role.Rank)
+                .Select(a => new StaffRole(a.Role.Id, a.Role.Key, a.Role.NameBn, a.Role.Rank))
+                .FirstOrDefaultAsync();
+            if (role is not null && (best is null || role.Rank > best.Rank)) best = role;
+        }
+        return best;
+    }
+
+    /// <summary>Business permissions the current user gets as staff on this business (empty for members or outsiders).</summary>
+    public async Task<string[]> StaffPermissionsAsync(Guid businessId)
+    {
+        var held = new HashSet<string>();
+        foreach (var grant in P.StaffGrants.Values.SelectMany(g => g).Distinct())
+            if (await CoveringAssignments(grant, businessId, false).AnyAsync()) held.Add(grant);
+        return P.StaffGrants.Where(kv => kv.Value.Any(held.Contains)).Select(kv => kv.Key).OrderBy(k => k).ToArray();
+    }
+
+    /// <summary>Active assignments of the current user with <paramref name="permission"/> whose zone/category covers the business.</summary>
+    private IQueryable<PlatformRoleAssignment> CoveringAssignments(string permission, Guid businessId, bool includeDeleted)
+    {
+        var businesses = includeDeleted ? db.Businesses.IgnoreQueryFilters() : db.Businesses;
+        var target = businesses.Where(b => b.Id == businessId);
+        return ActiveAssignments(me.RequireId(), permission).Where(a => target.Any(b =>
+            (a.ZoneId == null || (b.ZoneId != null && b.Zone!.Path.IsDescendantOf(a.Zone!.Path))) &&
+            (a.CategoryId == null || a.CategoryId == b.CategoryId)));
+    }
+
     // ---------------- platform / zone scope ----------------
 
     /// <summary>Active assignments of <paramref name="userId"/> whose role grants <paramref name="permission"/>.</summary>
@@ -79,10 +156,10 @@ public class AccessService(AppDbContext db, ICurrentUser me)
     }
 
     /// <summary>Businesses the current user may act on with a platform/zone permission.</summary>
-    public IQueryable<Business> ScopedBusinesses(string permission)
+    public IQueryable<Business> ScopedBusinesses(string permission, bool includeDeleted = false)
     {
         var assignments = ActiveAssignments(me.RequireId(), permission);
-        return db.Businesses.Where(b => assignments.Any(a =>
+        return (includeDeleted ? db.Businesses.IgnoreQueryFilters() : db.Businesses).Where(b => assignments.Any(a =>
             (a.ZoneId == null || (b.ZoneId != null && b.Zone!.Path.IsDescendantOf(a.Zone!.Path))) &&
             (a.CategoryId == null || a.CategoryId == b.CategoryId)));
     }
