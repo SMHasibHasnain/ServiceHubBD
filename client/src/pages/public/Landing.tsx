@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BadgeCheck, Pause, Play, Search } from "lucide-react";
 import { api } from "../../api/client";
 import type { BusinessCard, Category, Paged, Zone } from "../../api/types";
-import { Awning, Band, CategoryTile, CoverArt, Fringe, PetalPattern, Rosette, RosetteDivider, initialFont, initialOf, paintFor } from "../../components/brand";
+import { Awning, Band, CategoryTile, CoverArt, Fringe, PetalPattern, Rosette, initialFont, initialOf, paintFor } from "../../components/brand";
 import { BusinessCardView, useCategories, useZones } from "../../components/shared";
 import { Skeleton, Stars } from "../../components/ui";
 import { bn, taka } from "../../lib/format";
@@ -86,10 +86,9 @@ function Opt({ v, children }: { v: string; children: (v: string) => ReactNode })
 
 function SectionTitle({ eyebrow, title, light = false }: { eyebrow?: string; title: string; light?: boolean }) {
   return (
-    <div className="mb-12 flex flex-col items-center gap-2.5 text-center">
-      {eyebrow?.trim() && <span className={`font-painted text-[26px] ${light ? "text-marigold" : "text-paint-red"}`}>{eyebrow}</span>}
-      {title.trim() && <h2 className={`text-4xl font-extrabold sm:text-[52px] ${light ? "text-cream" : "text-primary"}`}>{title}</h2>}
-      <RosetteDivider color={light ? "#e9b24a" : "#c4373f"} />
+    <div className="mb-10 flex flex-col items-center gap-1 text-center">
+      {eyebrow?.trim() && <span className={`font-painted text-2xl ${light ? "text-marigold" : "text-paint-red"}`}>{eyebrow}</span>}
+      {title.trim() && <h2 className={`text-[32px] leading-tight font-semibold text-balance sm:text-[40px] ${light ? "text-cream" : "text-primary"}`}>{title}</h2>}
     </div>
   );
 }
@@ -124,25 +123,25 @@ function Hero({ d, categories }: { d: Data; categories: Category[] }) {
     <>
       <section className="relative overflow-hidden bg-primary text-cream">
         <PetalPattern />
-        <div className="relative mx-auto flex max-w-4xl flex-col items-center gap-7 px-4 pt-20 pb-24 text-center sm:px-6 md:pt-24 md:pb-32">
+        <div className="relative mx-auto flex max-w-4xl flex-col items-center gap-7 px-4 pt-20 pb-20 text-center sm:px-6 md:pt-24 md:pb-24">
           <Opt v={str(d, "eyebrow")}>{(v) => (
-            <p className="flex items-center gap-3 text-[15px] font-semibold tracking-wide text-marigold"><Rosette className="size-5" />{v}<Rosette className="size-5" /></p>
+            <p className="flex items-center gap-3 text-[15px] font-semibold text-marigold"><Rosette className="size-5" />{v}<Rosette className="size-5" /></p>
           )}</Opt>
           <h1 className="text-[44px] leading-[1.06] font-extrabold tracking-[-0.01em] sm:text-6xl lg:text-[84px]">
             {str(d, "titleLine1")}
             {str(d, "titleLine2").trim() && <><br /><span className="painted mt-3 inline-block text-[1.18em] text-marigold">{str(d, "titleLine2")}</span></>}
           </h1>
-          <Opt v={str(d, "subtitle")}>{(v) => <p className="max-w-2xl text-lg whitespace-pre-line text-[#cfd8ea] sm:text-xl">{v}</p>}</Opt>
+          <Opt v={str(d, "subtitle")}>{(v) => <p className="max-w-2xl text-lg text-pretty whitespace-pre-line text-[#cfd8ea] sm:text-xl">{v}</p>}</Opt>
 
           <form role="search" onSubmit={submit}
-            className="flex w-full max-w-2xl flex-wrap gap-1.5 rounded-[32px] bg-cream p-1.5 text-left shadow-[0_0_0_3px_var(--color-marigold)]">
+            className="flex w-full max-w-2xl flex-wrap gap-1.5 rounded-full bg-cream p-1.5 text-left shadow-[0_0_0_3px_var(--color-marigold)]">
             <label className="flex min-h-14 min-w-0 flex-[1_1_220px] items-center gap-3 px-4">
               <Search className="size-5 shrink-0 text-primary" aria-hidden />
               <span className="sr-only">কী সেবা খুঁজছেন</span>
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={str(d, "searchPlaceholder")}
                 className="w-full min-w-0 bg-transparent text-lg text-ink outline-none placeholder:text-[#8a8170]" />
             </label>
-            <button className="min-h-14 flex-[1_0_auto] rounded-full bg-paint-red px-9 font-display text-xl font-bold text-cream hover:bg-paint-red-hover sm:flex-none">{str(d, "searchButton") || "খুঁজুন"}</button>
+            <button className="min-h-14 flex-[1_0_auto] rounded-full bg-paint-red px-9 font-display text-xl font-semibold text-cream transition-colors duration-150 hover:bg-paint-red-hover sm:flex-none">{str(d, "searchButton") || "খুঁজুন"}</button>
           </form>
 
           {categories.length > 0 && (
@@ -151,7 +150,7 @@ function Hero({ d, categories }: { d: Data; categories: Category[] }) {
               {categories.slice(0, 5).map((c, i) => (
                 <span key={c.id}>
                   {i > 0 && " · "}
-                  <Link to={`/search?categoryId=${c.id}`} className="text-cream underline decoration-marigold/50 underline-offset-4 hover:text-marigold">{c.nameBn}</Link>
+                  <Link to={`/search?categoryId=${c.id}`} className="text-cream underline decoration-marigold/50 underline-offset-4 transition-colors duration-150 hover:text-marigold">{c.nameBn}</Link>
                 </span>
               ))}
             </p>
@@ -167,14 +166,14 @@ function Categories({ d, categories, loading }: { d: Data; categories: Category[
   return (
     <section className="mx-auto max-w-6xl px-4 pt-20 pb-24 sm:px-6">
       <SectionTitle eyebrow={str(d, "eyebrow")} title={str(d, "title")} />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {loading && Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-[92px] rounded-[14px]" />)}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        {loading && Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-[92px] rounded-lg" />)}
         {categories.map((c) => (
           <Link key={c.id} to={`/search?categoryId=${c.id}`}
-            className="group flex items-center gap-4 rounded-[14px] border-[1.5px] border-sand bg-paper px-4 py-4 transition-colors hover:border-ink">
-            <CategoryTile id={c.id} name={c.nameBn} className="size-[60px] text-[30px] transition-transform group-hover:-rotate-6" />
+            className="flex flex-col items-start gap-3 rounded-lg border-[1.5px] border-sand bg-paper p-4 transition-colors duration-150 hover:border-ink sm:flex-row sm:items-center sm:gap-4">
+            <CategoryTile id={c.id} name={c.nameBn} className="size-12 text-2xl sm:size-[60px] sm:text-[30px]" />
             <span className="min-w-0">
-              <span className="block font-display text-[19px] leading-snug font-bold [overflow-wrap:anywhere]">{c.nameBn}</span>
+              <span className="block font-display text-lg leading-snug font-semibold [overflow-wrap:anywhere]">{c.nameBn}</span>
               <span className="line-clamp-1 text-sm text-muted">
                 {c.children.length ? c.children.slice(0, 3).map((x) => x.nameBn).join(" · ") : c.nameEn}
               </span>
@@ -204,7 +203,7 @@ function Steps({ d }: { d: Data }) {
                   style={{ background: p.bg, color: p.fg, boxShadow: `inset 0 0 0 4px var(--color-paper), 0 0 0 2px ${p.bg}` }}>
                   <span className="translate-y-[0.06em]">{bn(i + 1)}</span>
                 </span>
-                <span className="font-display text-2xl font-bold text-primary">{str(s, "title")}</span>
+                <span className="font-display text-2xl font-semibold text-primary">{str(s, "title")}</span>
                 <span className="max-w-xs whitespace-pre-line text-muted">{str(s, "body")}</span>
               </li>
             );
@@ -220,22 +219,22 @@ function Featured({ d, items, loading }: { d: Data; items: BusinessCard[]; loadi
     <section className="mx-auto max-w-6xl px-4 pt-20 pb-24 sm:px-6">
       <div className="mb-10 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-[26px] text-paint-red">{v}</span>}</Opt>
-          <h2 className="text-4xl font-extrabold text-primary sm:text-[52px]">{str(d, "title")}</h2>
+          <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-2xl text-paint-red">{v}</span>}</Opt>
+          <h2 className="text-[32px] leading-tight font-semibold text-primary sm:text-[40px]">{str(d, "title")}</h2>
         </div>
         <Opt v={str(d, "linkLabel")}>{(v) => (
-          <Link to="/search?sort=highest_rated" className="font-bold text-primary underline decoration-paint-red decoration-2 underline-offset-4 hover:text-paint-red">{v}</Link>
+          <Link to="/search?sort=highest_rated" className="font-semibold text-primary underline decoration-paint-red decoration-2 underline-offset-4 transition-colors duration-150 hover:text-paint-red">{v}</Link>
         )}</Opt>
       </div>
       {loading ? (
         <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-80" />)}</div>
       ) : items.length ? (
-        <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">{items.map((b, i) => <BusinessCardView key={b.id} b={b} index={i} />)}</div>
+        <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">{items.map((b) => <BusinessCardView key={b.id} b={b} />)}</div>
       ) : (
         <div className="signboard items-center gap-3 p-10 text-center">
           <Rosette className="size-10" />
           <p className="whitespace-pre-line text-muted">{str(d, "emptyText")}</p>
-          <Opt v={str(d, "emptyButton")}>{(v) => <Link to="/business/new" className="inline-flex min-h-11 items-center rounded-full bg-primary px-6 font-bold text-cream hover:bg-primary-hover">{v}</Link>}</Opt>
+          <Opt v={str(d, "emptyButton")}>{(v) => <Link to="/business/new" className="inline-flex min-h-11 items-center rounded-full bg-primary px-6 font-semibold text-cream transition-colors duration-150 hover:bg-primary-hover">{v}</Link>}</Opt>
         </div>
       )}
     </section>
@@ -256,8 +255,8 @@ function Seasonal({ d }: { d: Data }) {
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-[26px] text-paint-red">{v}</span>}</Opt>
-            <h2 className="text-[32px] leading-tight font-extrabold text-primary sm:text-[44px]">{str(now, "title")}</h2>
+            <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-2xl text-paint-red">{v}</span>}</Opt>
+            <h2 className="text-[32px] leading-tight font-semibold text-primary sm:text-[40px]">{str(now, "title")}</h2>
           </div>
           <span className="text-[15px] text-muted">{str(now, "note")}</span>
         </div>
@@ -267,11 +266,11 @@ function Seasonal({ d }: { d: Data }) {
             const q = str(p, "query").trim() || str(p, "title");
             return (
               <Link key={i} to={`/search?q=${encodeURIComponent(q)}`}
-                className="group flex flex-col gap-3 rounded-[14px] border-[1.5px] border-sand bg-paper p-6 transition-colors hover:border-ink">
+                className="group flex flex-col gap-3 rounded-lg border-[1.5px] border-sand bg-paper p-6 transition-colors duration-150 hover:border-ink">
                 <span aria-hidden className="h-1.5 w-14 rounded-full" style={{ background: paint.bg }} />
-                <span className="font-display text-2xl font-bold text-primary group-hover:text-paint-red">{str(p, "title")}</span>
+                <span className="font-display text-xl font-semibold text-primary transition-colors duration-150 group-hover:text-paint-red">{str(p, "title")}</span>
                 <span className="whitespace-pre-line text-muted">{str(p, "body")}</span>
-                <Opt v={str(d, "linkLabel")}>{(v) => <span className="mt-auto pt-2 text-[15px] font-bold text-paint-red">{v}</span>}</Opt>
+                <Opt v={str(d, "linkLabel")}>{(v) => <span className="mt-auto pt-2 text-[15px] font-semibold text-paint-red">{v}</span>}</Opt>
               </Link>
             );
           })}
@@ -290,7 +289,7 @@ function Testimonials({ d }: { d: Data }) {
           const p = paintFor(i);
           return (
             <li key={i} className="mb-6 break-inside-avoid">
-              <figure className="flex flex-col gap-4 rounded-[14px] border-[1.5px] border-sand bg-paper p-6">
+              <figure className="flex flex-col gap-4 rounded-lg border-[1.5px] border-sand bg-paper p-6">
                 <span aria-hidden className="h-6 font-painted text-6xl leading-none" style={{ color: p.bg }}>“</span>
                 <blockquote className="text-[17px] leading-relaxed whitespace-pre-line text-ink">{str(t, "quote")}</blockquote>
                 <figcaption className="flex items-center gap-3 border-t border-sand pt-4">
@@ -298,7 +297,7 @@ function Testimonials({ d }: { d: Data }) {
                     <span className="translate-y-[0.06em]">{initialOf(str(t, "name"))}</span>
                   </span>
                   <span className="min-w-0 text-sm">
-                    <span className="block text-[15px] font-bold text-ink">{str(t, "name")}</span>
+                    <span className="block text-[15px] font-semibold text-ink">{str(t, "name")}</span>
                     <span className="block text-muted">{[str(t, "area"), str(t, "service")].filter((x) => x.trim()).join(" · ")}</span>
                   </span>
                 </figcaption>
@@ -317,13 +316,13 @@ function Areas({ d, divisions }: { d: Data; divisions: Zone[] }) {
       <section className="relative overflow-hidden bg-primary text-cream">
         <PetalPattern />
         <div className="relative mx-auto max-w-6xl px-4 py-20 text-center sm:px-6">
-          <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-[26px] text-marigold">{v}</span>}</Opt>
-          <h2 className="text-[32px] leading-tight font-extrabold sm:text-[44px]">{str(d, "title")}</h2>
+          <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-2xl text-marigold">{v}</span>}</Opt>
+          <h2 className="text-[32px] leading-tight font-semibold sm:text-[40px]">{str(d, "title")}</h2>
           <ul className="mx-auto mt-10 flex max-w-4xl flex-wrap justify-center gap-3">
             {divisions.map((z) => (
               <li key={z.id}>
                 <Link to={`/search?zoneId=${z.id}`}
-                  className="inline-flex min-h-12 items-center gap-2 rounded-full border-[1.5px] border-cream/30 px-5 text-[17px] font-semibold text-cream transition-colors hover:border-marigold hover:bg-marigold hover:text-ink">
+                  className="inline-flex min-h-12 items-center gap-2 rounded-full border-[1.5px] border-cream/30 px-5 text-[17px] font-medium text-cream transition-colors duration-150 hover:border-marigold hover:bg-marigold hover:text-ink">
                   {z.nameBn}
                 </Link>
               </li>
@@ -342,10 +341,10 @@ function Faq({ d }: { d: Data }) {
       <SectionTitle eyebrow={str(d, "eyebrow")} title={str(d, "title")} />
       <div className="flex flex-col gap-3">
         {list(d, "items").map((f, i) => (
-          <details key={i} className="group rounded-[14px] border-[1.5px] border-sand bg-paper open:border-ink">
-            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 font-display text-lg font-bold text-primary [&::-webkit-details-marker]:hidden">
+          <details key={i} className="group rounded-lg border-[1.5px] border-sand bg-paper open:border-ink">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 font-display text-lg font-semibold text-primary [&::-webkit-details-marker]:hidden">
               {str(f, "q")}
-              <Rosette color="#c4373f" className="size-5 shrink-0 transition-transform group-open:rotate-45" />
+              <Rosette color="#c4373f" className="size-5 shrink-0 transition-transform duration-150 group-open:rotate-45" />
             </summary>
             <p className="px-5 pb-5 whitespace-pre-line text-muted">{str(f, "a")}</p>
           </details>
@@ -363,18 +362,18 @@ function Business({ d }: { d: Data }) {
         <PetalPattern className="opacity-[0.5]" color="#fbf3e2" />
         <div className={`relative mx-auto grid max-w-6xl items-center gap-14 px-4 py-20 sm:px-6 md:py-24 ${points.length ? "lg:grid-cols-2" : ""}`}>
           <div className="flex min-w-0 flex-col items-start gap-6">
-            <h2 className="text-[38px] leading-[1.08] font-extrabold text-ink sm:text-[54px]">
+            <h2 className="text-[36px] leading-[1.1] font-semibold text-ink sm:text-5xl">
               {str(d, "titleLine1")}
               {str(d, "titleLine2").trim() && <><br /><span className="painted-soft text-[1.12em] text-paint-red">{str(d, "titleLine2")}</span></>}
             </h2>
             <Opt v={str(d, "body")}>{(v) => <p className="max-w-md whitespace-pre-line text-[#3a3426]">{v}</p>}</Opt>
             <div className="flex flex-wrap gap-3">
-              <Opt v={str(d, "primaryButton")}>{(v) => <Link to="/business/new" className="inline-flex min-h-12 items-center rounded-full bg-primary px-7 text-lg font-bold text-cream hover:bg-primary-hover">{v}</Link>}</Opt>
-              <Opt v={str(d, "secondaryButton")}>{(v) => <Link to="/pricing" className="inline-flex min-h-12 items-center rounded-full border-2 border-ink px-6 font-bold text-ink hover:bg-ink hover:text-cream">{v}</Link>}</Opt>
+              <Opt v={str(d, "primaryButton")}>{(v) => <Link to="/business/new" className="inline-flex min-h-12 items-center rounded-full bg-primary px-7 text-lg font-semibold text-cream transition-colors duration-150 hover:bg-primary-hover">{v}</Link>}</Opt>
+              <Opt v={str(d, "secondaryButton")}>{(v) => <Link to="/pricing" className="inline-flex min-h-12 items-center rounded-full border-2 border-ink px-6 font-semibold text-ink transition-colors duration-150 hover:bg-ink hover:text-cream">{v}</Link>}</Opt>
             </div>
           </div>
           {points.length > 0 && (
-            <ol className="flex min-w-0 flex-col gap-6 rounded-[18px] bg-paper p-6 shadow-[0_0_0_2px_var(--color-ink)] sm:p-8">
+            <ol className="flex min-w-0 flex-col gap-6 rounded-xl bg-paper p-6 shadow-[0_0_0_2px_var(--color-ink)] sm:p-8">
               {points.map((p, i) => {
                 const paint = paintFor(i);
                 return (
@@ -382,7 +381,7 @@ function Business({ d }: { d: Data }) {
                     <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-full font-painted text-[26px] leading-none" style={{ background: paint.bg, color: paint.fg }}>
                       <span className="translate-y-[0.06em]">{bn(i + 1)}</span>
                     </span>
-                    <span><b className="block font-display text-xl">{str(p, "title")}</b><span className="whitespace-pre-line">{str(p, "body")}</span></span>
+                    <span><b className="block font-display text-xl font-semibold">{str(p, "title")}</b><span className="whitespace-pre-line">{str(p, "body")}</span></span>
                   </li>
                 );
               })}
@@ -404,11 +403,11 @@ function TextSection({ d }: { d: Data }) {
       <section className={`relative overflow-hidden ${t.bg}`}>
         {t.light && <PetalPattern />}
         <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-5 px-4 py-20 text-center sm:px-6">
-          <Opt v={str(d, "eyebrow")}>{(v) => <span className={`font-painted text-[26px] ${t.eyebrow}`}>{v}</span>}</Opt>
-          <Opt v={str(d, "title")}>{(v) => <h2 className={`text-[32px] leading-tight font-extrabold sm:text-[44px] ${t.title}`}>{v}</h2>}</Opt>
+          <Opt v={str(d, "eyebrow")}>{(v) => <span className={`font-painted text-2xl ${t.eyebrow}`}>{v}</span>}</Opt>
+          <Opt v={str(d, "title")}>{(v) => <h2 className={`text-[32px] leading-tight font-semibold sm:text-[40px] ${t.title}`}>{v}</h2>}</Opt>
           <Opt v={str(d, "body")}>{(v) => <p className={`text-lg whitespace-pre-line ${t.body}`}>{v}</p>}</Opt>
           {str(d, "buttonLabel").trim() && (
-            <SmartLink to={str(d, "buttonLink")} className="mt-2 inline-flex min-h-12 items-center rounded-full bg-paint-red px-7 text-lg font-bold text-cream hover:bg-paint-red-hover">{str(d, "buttonLabel")}</SmartLink>
+            <SmartLink to={str(d, "buttonLink")} className="mt-2 inline-flex min-h-12 items-center rounded-full bg-paint-red px-7 text-lg font-semibold text-cream transition-colors duration-150 hover:bg-paint-red-hover">{str(d, "buttonLabel")}</SmartLink>
           )}
         </div>
       </section>
@@ -430,12 +429,12 @@ function CardsSection({ d }: { d: Data }) {
             {items.map((c, i) => {
               const paint = paintFor(i);
               return (
-                <div key={i} className="flex flex-col gap-3 rounded-[14px] border-[1.5px] border-sand bg-paper p-6 text-ink">
+                <div key={i} className="flex flex-col gap-3 rounded-lg border-[1.5px] border-sand bg-paper p-6 text-ink">
                   <span aria-hidden className="h-1.5 w-14 rounded-full" style={{ background: paint.bg }} />
-                  <span className="font-display text-2xl font-bold text-primary">{str(c, "title")}</span>
+                  <span className="font-display text-xl font-semibold text-primary">{str(c, "title")}</span>
                   <Opt v={str(c, "body")}>{(v) => <span className="whitespace-pre-line text-muted">{v}</span>}</Opt>
                   {str(c, "linkLabel").trim() && (
-                    <SmartLink to={str(c, "link")} className="mt-auto pt-2 text-[15px] font-bold text-paint-red hover:underline">{str(c, "linkLabel")}</SmartLink>
+                    <SmartLink to={str(c, "link")} className="mt-auto pt-2 text-[15px] font-semibold text-paint-red hover:underline">{str(c, "linkLabel")}</SmartLink>
                   )}
                 </div>
               );
@@ -455,9 +454,9 @@ function BannerSection({ d }: { d: Data }) {
     <section className={t.bg}>
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-3 px-4 py-6 text-center sm:px-6">
         <Rosette className="size-6 shrink-0" />
-        <p className={`font-display text-xl font-bold ${t.title}`}>{str(d, "text")}</p>
+        <p className={`font-display text-xl font-semibold ${t.title}`}>{str(d, "text")}</p>
         {str(d, "buttonLabel").trim() && (
-          <SmartLink to={str(d, "buttonLink")} className="inline-flex min-h-11 items-center rounded-full bg-paint-red px-6 font-bold text-cream hover:bg-paint-red-hover">{str(d, "buttonLabel")}</SmartLink>
+          <SmartLink to={str(d, "buttonLink")} className="inline-flex min-h-11 items-center rounded-full bg-paint-red px-6 font-semibold text-cream transition-colors duration-150 hover:bg-paint-red-hover">{str(d, "buttonLabel")}</SmartLink>
         )}
       </div>
     </section>
@@ -496,8 +495,8 @@ function ShopShowcase({ d, businesses }: { d: Data; businesses: BusinessCard[] }
       <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         <div className="flex min-w-0 flex-col gap-5" {...hover}>
           <div>
-            <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-[26px] text-paint-red">{v}</span>}</Opt>
-            <h2 id="shop-title" className="text-4xl leading-tight font-extrabold text-primary sm:text-[48px]">{str(d, "title")}</h2>
+            <Opt v={str(d, "eyebrow")}>{(v) => <span className="block font-painted text-2xl text-paint-red">{v}</span>}</Opt>
+            <h2 id="shop-title" className="text-[32px] leading-tight font-semibold text-primary sm:text-[40px]">{str(d, "title")}</h2>
           </div>
           <Opt v={str(d, "body")}>{(v) => <p className="whitespace-pre-line text-muted">{v}</p>}</Opt>
           {count > 1 && (
@@ -505,10 +504,10 @@ function ShopShowcase({ d, businesses }: { d: Data; businesses: BusinessCard[] }
               {businesses.map((x, i) => (
                 <li key={x.id}>
                   <button type="button" onClick={() => setIndex(i)} aria-pressed={i === current}
-                    className={`flex w-full items-center gap-3 rounded-[12px] border-[1.5px] px-3 py-2.5 text-left transition-colors ${i === current ? "border-ink bg-paper" : "border-transparent hover:border-sand hover:bg-paper/60"}`}>
+                    className={`flex w-full items-center gap-3 rounded-md border-[1.5px] px-3 py-2.5 text-left transition-colors duration-150 ${i === current ? "border-ink bg-paper" : "border-transparent hover:border-sand hover:bg-paper/60"}`}>
                     <CategoryTile id={x.categoryId} name={x.categoryName} className="size-10 text-xl" />
                     <span className="min-w-0 flex-1">
-                      <span className={`block truncate font-display text-lg font-bold ${i === current ? "text-paint-red" : "text-primary"}`}>{x.name}</span>
+                      <span className={`block truncate font-display text-lg font-semibold ${i === current ? "text-paint-red" : "text-primary"}`}>{x.name}</span>
                       <span className="block truncate text-sm text-muted">{x.categoryName}{x.zoneName && ` · ${x.zoneName}`}</span>
                     </span>
                   </button>
@@ -546,10 +545,10 @@ function ShopShowcase({ d, businesses }: { d: Data; businesses: BusinessCard[] }
                   {b.isVerified && <span className="inline-flex items-center gap-1 self-start rounded-full bg-leaf px-2.5 py-0.5 text-[13px] font-semibold text-white"><BadgeCheck className="size-3.5" aria-hidden />যাচাইকৃত</span>}
                   {b.zoneName && <span className="text-[15px] font-semibold text-ink">{b.zoneName}</span>}
                   <span className="text-[15px]">{b.reviewCount > 0 ? <><Stars value={b.avgRating} /> <span className="text-subtle">({bn(b.reviewCount)} রিভিউ)</span></> : <span className="text-subtle">{str(d, "newLabel")}</span>}</span>
-                  {b.startingPrice != null && <span className="font-display text-2xl font-bold text-paint-red">{taka(b.startingPrice)} <span className="text-base font-semibold text-muted">থেকে</span></span>}
+                  {b.startingPrice != null && <span className="font-display text-2xl font-semibold text-paint-red tabular-nums">{taka(b.startingPrice)} <span className="text-base font-semibold text-muted">থেকে</span></span>}
                   <div className="mt-auto flex flex-col gap-2 pt-2">
-                    <Link to={`/b/${b.slug}/book`} className="inline-flex min-h-11 items-center justify-center rounded-full bg-paint-red px-5 font-bold text-cream hover:bg-paint-red-hover">{str(d, "bookButton") || "বুক করুন"}</Link>
-                    <Link to={`/b/${b.slug}`} className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink px-5 font-bold text-ink hover:bg-ink hover:text-cream">{str(d, "profileButton") || "প্রোফাইল দেখুন"}</Link>
+                    <Link to={`/b/${b.slug}/book`} className="inline-flex min-h-11 items-center justify-center rounded-full bg-paint-red px-5 font-semibold text-cream transition-colors duration-150 hover:bg-paint-red-hover">{str(d, "bookButton") || "বুক করুন"}</Link>
+                    <Link to={`/b/${b.slug}`} className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink px-5 font-semibold text-ink transition-colors duration-150 hover:bg-ink hover:text-cream">{str(d, "profileButton") || "প্রোফাইল দেখুন"}</Link>
                   </div>
                 </div>
               </div>
