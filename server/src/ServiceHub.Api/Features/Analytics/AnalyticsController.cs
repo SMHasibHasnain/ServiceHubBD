@@ -306,10 +306,10 @@ public class AnalyticsController(AppDbContext db, ICurrentUser me, AccessService
         var reasonLabel = new Dictionary<ReportReason, string>
         {
             [ReportReason.FakeBusiness] = "ভুয়া ব্যবসা", [ReportReason.Spam] = "স্প্যাম", [ReportReason.Fraud] = "প্রতারণা",
-            [ReportReason.AbusiveBehaviour] = "অশোভন আচরণ", [ReportReason.MisleadingInformation] = "বিভ্রান্তিকর তথ্য", [ReportReason.Other] = "অন্যান্য",
+            [ReportReason.AbusiveBehaviour] = "অশোভন আচরণ", [ReportReason.MisleadingInformation] = "বিভ্রান্তিকর তথ্য", [ReportReason.InappropriateContent] = "অনুপযুক্ত ছবি বা লেখা", [ReportReason.Other] = "অন্যান্য",
         };
         var reportReasons = reports.Where(r => p.InCurrent(r.CreatedAt)).GroupBy(r => r.Reason)
-            .Select(g => new Slice(SnakeCase.FromEnum(g.Key), reasonLabel[g.Key], g.Count()))
+            .Select(g => new Slice(SnakeCase.FromEnum(g.Key), reasonLabel.GetValueOrDefault(g.Key, "অন্যান্য"), g.Count()))
             .OrderByDescending(s => s.Value).ToList();
 
         var modIds = curActions.Select(a => a.ModeratorId).Distinct().ToList();
