@@ -253,15 +253,17 @@ public class StaffController(AppDbContext db, ICurrentUser me, AccessService acc
 
     /// <summary>Managers see everyone's leave; others see their own.</summary>
     [HttpGet("leaves")]
-    public async Task<ActionResult<List<LeaveDto>>> ListLeaves(Guid businessId, [FromQuery] bool mine = false)
+    public async Task<ActionResult<PagedResult<LeaveDto>>> ListLeaves(Guid businessId, [FromQuery] PageQuery paging, [FromQuery] bool mine = false)
     {
         var member = await access.RequireBusinessAsync(businessId, P.BusinessView);
         var all = !mine && await access.HasBusinessPermissionAsync(businessId, P.MembersManage);
         var since = BdTime.Today().AddDays(-30);
-        var list = await db.StaffLeaves.Include(l => l.Member).ThenInclude(m => m.User)
-            .Where(l => l.BusinessId == businessId && (all || l.MemberId == member.Id) && l.EndDate >= since)
-            .OrderBy(l => l.Status == LeaveStatus.Pending ? 0 : 1).ThenBy(l => l.StartDate).ToListAsync();
-        return list.Select(Leaves.ToDto).ToList();
+        var query = db.StaffLeaves.Where(l => l.BusinessId == businessId && (all || l.MemberId == member.Id) && l.EndDate >= since);
+        var total = await query.CountAsync();
+        var list = await query.Include(l => l.Member).ThenInclude(m => m.User)
+            .OrderBy(l => l.Status == LeaveStatus.Pending ? 0 : 1).ThenBy(l => l.StartDate).ThenBy(l => l.Id)
+            .Skip(paging.Skip).Take(paging.SafeSize).ToListAsync();
+        return new PagedResult<LeaveDto>(list.Select(Leaves.ToDto).ToList(), paging.SafePage, paging.SafeSize, total);
     }
 
     [HttpPost("leaves")]
