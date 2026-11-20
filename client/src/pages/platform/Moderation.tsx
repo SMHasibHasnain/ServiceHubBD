@@ -1,20 +1,22 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, ShieldCheck } from "lucide-react";
 import { api } from "../../api/client";
 import type { Paged, QueueItem, ReportItem, VerificationDetail, VerificationStatus } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
-import { Avatar, Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, Segmented, useToast } from "../../components/ui";
+import { Avatar, Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PAGE_SIZE, PageHeader, Pagination, Segmented, usePage, useToast } from "../../components/ui";
 import { DOCUMENT_TYPES, MODERATION_ACTIONS, REPORT_REASONS, VERIFICATION_STATUS, bn, dateTime, relative } from "../../lib/format";
 
 const PRIORITY = { low: { label: "নিম্ন", tone: "neutral" }, normal: { label: "সাধারণ", tone: "blue" }, high: { label: "উচ্চ", tone: "amber" }, urgent: { label: "জরুরি", tone: "red" } } as const;
 
 export function ModerationQueue() {
   const [status, setStatus] = useState<"" | VerificationStatus>("");
+  const [page, setPage] = usePage(status);
   const list = useQuery({
-    queryKey: ["moderation", "queue", status],
-    queryFn: () => api.get<Paged<QueueItem>>("/api/moderation/verifications", { status, pageSize: 100 }),
+    queryKey: ["moderation", "queue", status, page],
+    queryFn: () => api.get<Paged<QueueItem>>("/api/moderation/verifications", { status, page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
   });
   return (
     <>
@@ -40,7 +42,8 @@ export function ModerationQueue() {
             </li>
           ))}
         </ul>
-      ) : <EmptyState icon={<ShieldCheck className="size-8" aria-hidden />} title="কোনো অপেক্ষমাণ যাচাইকরণ নেই।" />}
+      ) : <EmptyState icon={<ShieldCheck className="size-8" aria-hidden />} title="কোনো অপেক্ষমাণ যাচাইকরণ নেই" />}
+      {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} label="যাচাইকরণের পাতা" />}
     </>
   );
 }
@@ -157,7 +160,7 @@ export function VerificationReview() {
 
           <section className="card p-6">
             <h2 className="mb-3 text-base font-semibold">সিদ্ধান্তের ইতিহাস</h2>
-            {d.history.length === 0 ? <p className="text-muted">এখনও কোনো সিদ্ধান্ত নেই।</p> : (
+            {d.history.length === 0 ? <p className="text-muted">এখনও কোনো সিদ্ধান্ত নেই</p> : (
               <ol className="flex flex-col gap-3 border-l-2 border-line pl-4">
                 {d.history.map((h) => (
                   <li key={h.id} className="text-[15px]">
@@ -196,7 +199,12 @@ export function ModerationReports() {
   const [active, setActive] = useState<ReportItem | null>(null);
   const [resolution, setResolution] = useState("dismiss");
   const [reason, setReason] = useState("");
-  const list = useQuery({ queryKey: ["moderation", "reports"], queryFn: () => api.get<Paged<ReportItem>>("/api/moderation/reports", { pageSize: 100 }) });
+  const [page, setPage] = usePage();
+  const list = useQuery({
+    queryKey: ["moderation", "reports", page],
+    queryFn: () => api.get<Paged<ReportItem>>("/api/moderation/reports", { page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
+  });
   const resolve = useMutation({
     mutationFn: () => api.post(`/api/moderation/reports/${active!.id}/resolve`, { resolution, reason }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["moderation", "reports"] }); setActive(null); setReason(""); toast("রিপোর্টের সিদ্ধান্ত সংরক্ষিত হয়েছে।"); },
@@ -225,7 +233,8 @@ export function ModerationReports() {
             </li>
           ))}
         </ul>
-      ) : <EmptyState title="কোনো খোলা রিপোর্ট নেই।" />}
+      ) : <EmptyState title="কোনো খোলা রিপোর্ট নেই" />}
+      {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} label="রিপোর্টের পাতা" />}
       <Modal open={!!active} onClose={() => setActive(null)} title="রিপোর্টের সিদ্ধান্ত"
         footer={<><Button variant="ghost" onClick={() => setActive(null)}>বাতিল</Button><Button disabled={reason.trim().length < 5} loading={resolve.isPending} onClick={() => resolve.mutate()}>নিশ্চিত করুন</Button></>}>
         <div className="flex flex-col gap-4">
@@ -254,9 +263,11 @@ function ReportedContent({ content }: { content: NonNullable<ReportItem["content
 }
 
 export function ModerationHistory() {
+  const [page, setPage] = usePage();
   const list = useQuery({
-    queryKey: ["moderation", "history"],
-    queryFn: () => api.get<Paged<{ id: string; action: string; reason: string; moderatorName: string; createdAt: string }>>("/api/moderation/actions", { pageSize: 100 }),
+    queryKey: ["moderation", "history", page],
+    queryFn: () => api.get<Paged<{ id: string; action: string; reason: string; moderatorName: string; createdAt: string }>>("/api/moderation/actions", { page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
   });
   return (
     <>
@@ -272,7 +283,8 @@ export function ModerationHistory() {
             </li>
           ))}
         </ul>
-      ) : <EmptyState title="এখনও কোনো সিদ্ধান্ত নেই।" />}
+      ) : <EmptyState title="এখনও কোনো সিদ্ধান্ত নেই" />}
+      {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} label="সিদ্ধান্তের পাতা" />}
     </>
   );
 }
