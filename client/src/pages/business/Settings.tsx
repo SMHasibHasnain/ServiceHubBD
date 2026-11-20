@@ -5,7 +5,7 @@ import { Lock, Plus, Trash2 } from "lucide-react";
 import { api } from "../../api/client";
 import type { BookingSettings, DocumentType, VerificationSummary } from "../../api/types";
 import { flattenCategories, useCategories, useZones, ZonePicker } from "../../components/shared";
-import { Badge, Button, ErrorBox, Modal, PageHeader, Skeleton, useToast } from "../../components/ui";
+import { Badge, Button, ErrorBox, Modal, PageHeader, Pagination, Skeleton, useClientPage, useToast } from "../../components/ui";
 import { DOCUMENT_TYPES, VERIFICATION_STATUS, bn, dateShort } from "../../lib/format";
 import { useBiz } from "./Dashboard";
 import { HoursEditor, hoursFromWeek, weekFromHours } from "./HoursEditor";
@@ -172,6 +172,7 @@ function VerificationSection() {
   const biz = useBiz()!;
   const saved = useSaved("আপনার যাচাইকরণের আবেদন জমা হয়েছে।");
   const history = useQuery({ queryKey: ["business", biz.id, "verification"], queryFn: () => api.get<VerificationSummary[]>(`/api/businesses/${biz.id}/verification`) });
+  const attempts = useClientPage(history.data, null, 5);
   const [docs, setDocs] = useState<{ documentType: DocumentType; fileUrl: string }[]>([{ documentType: "trade_license", fileUrl: "" }]);
   const canSubmit = biz.myPermissions.includes("business.verification.submit") && ["draft", "rejected", "info_requested"].includes(biz.verificationStatus);
   const submit = useMutation({
@@ -209,14 +210,17 @@ function VerificationSection() {
         </>
       ) : biz.verificationStatus !== "approved" && <p className="text-muted">আপনার আবেদন পর্যালোচনায় আছে। সিদ্ধান্ত হলে নোটিফিকেশন পাবেন।</p>}
       {!!history.data?.length && (
+        <div>
         <ul className="divide-y divide-zinc-100 rounded-md border border-line text-[15px]">
-          {history.data.map((v) => (
+          {attempts.items.map((v) => (
             <li key={v.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
               <span className="font-semibold">আবেদন #{bn(v.attemptNo)}</span><span className="text-subtle">{dateShort(v.submittedAt)}</span>
               <Badge tone={VERIFICATION_STATUS[v.status].tone} className="ml-auto text-xs">{VERIFICATION_STATUS[v.status].label}</Badge>
             </li>
           ))}
         </ul>
+        <Pagination page={attempts.page} total={attempts.total} pageSize={attempts.pageSize} onChange={attempts.setPage} scrollTop={false} label="আবেদনের পাতা" />
+        </div>
       )}
     </section>
   );
