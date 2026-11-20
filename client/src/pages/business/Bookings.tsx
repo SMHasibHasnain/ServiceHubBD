@@ -4,7 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { CalendarClock, CalendarDays, Phone } from "lucide-react";
 import { api } from "../../api/client";
 import type { Booking, BookingStatus, Member, Paged } from "../../api/types";
-import { Avatar, Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, useToast } from "../../components/ui";
+import { Avatar, Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PAGE_SIZE, PageHeader, Pagination, usePage, useToast } from "../../components/ui";
 import { BOOKING_STATUS, bn, dateLong, dateShort, dateTime, priceLabel, taka, timeOnly, todayBd } from "../../lib/format";
 import { useBiz } from "./Dashboard";
 
@@ -22,9 +22,10 @@ export default function Bookings() {
   const openId = params.get("open");
 
   const dates = range === "today" ? { from: todayBd(), to: todayBd() } : range === "upcoming" ? { from: todayBd() } : {};
+  const [page, setPage] = usePage({ status, range, q });
   const list = useQuery({
-    queryKey: ["business", biz?.id, "bookings", { status, range, q }],
-    queryFn: () => api.get<Paged<Booking>>(`/api/businesses/${biz!.id}/bookings`, { status, q, ...dates, pageSize: 100 }),
+    queryKey: ["business", biz?.id, "bookings", { status, range, q, page }],
+    queryFn: () => api.get<Paged<Booking>>(`/api/businesses/${biz!.id}/bookings`, { status, q, ...dates, page, pageSize: PAGE_SIZE }),
     enabled: !!biz,
     placeholderData: keepPreviousData,
   });
@@ -74,9 +75,10 @@ export default function Bookings() {
           ))}
         </ul>
       ) : (
-        <EmptyState icon={<CalendarDays className="size-8" aria-hidden />} title="এখনও কোনো বুকিং নেই।"
+        <EmptyState icon={<CalendarDays className="size-8" aria-hidden />} title="এখনও কোনো বুকিং নেই"
           description="আপনার পাবলিক পেজটি গ্রাহকদের সাথে শেয়ার করুন, অথবা ফিল্টার পরিবর্তন করে দেখুন।" />
       )}
+      {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} label="অ্যাপয়েন্টমেন্টের পাতা" />}
       {openId && biz && <BookingDetail businessId={biz.id} bookingId={openId} permissions={biz.myPermissions} onClose={() => set("open", null)} />}
     </>
   );
