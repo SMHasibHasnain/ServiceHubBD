@@ -60,6 +60,18 @@ public class Inspection : ITimestamped
     public Dictionary<string, bool>? Checklist { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    public List<InspectionPhoto> Photos { get; set; } = [];
+}
+
+/// <summary>Evidence photo taken by the inspector during a visit.</summary>
+public class InspectionPhoto
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid InspectionId { get; set; }
+    public string ImageUrl { get; set; } = "";
+    public string? Caption { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 /// <summary>Append-only moderator decision history. Every decision carries a reason.</summary>
@@ -95,6 +107,16 @@ public class Review : ITimestamped
     public DateTime UpdatedAt { get; set; }
 
     public ReviewReply? Reply { get; set; }
+    public List<ReviewPhoto> Photos { get; set; } = [];
+}
+
+/// <summary>Photo the customer attached to their review (uploaded by them).</summary>
+public class ReviewPhoto
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid ReviewId { get; set; }
+    public string ImageUrl { get; set; } = "";
+    public short SortOrder { get; set; }
 }
 
 public class ReviewReply : ITimestamped
@@ -126,6 +148,9 @@ public class Report
     public Guid? TargetReviewId { get; set; }
     public Review? TargetReview { get; set; }
     public Guid? TargetUserId { get; set; }
+    /// <summary>Optional: one item of the business's public page the report is about (see <c>ReportContent</c>).</summary>
+    public string? TargetContentType { get; set; }
+    public Guid? TargetContentId { get; set; }
     public ReportReason Reason { get; set; }
     public string? Description { get; set; }
     public PriorityLevel Severity { get; set; } = PriorityLevel.Normal;
