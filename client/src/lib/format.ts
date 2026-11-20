@@ -1,4 +1,4 @@
-import type { BookingStatus, PriceType, VerificationStatus } from "../api/types";
+import type { BookingStatus, BusinessStatus, PriceType, VerificationStatus } from "../api/types";
 
 const TZ = "Asia/Dhaka";
 const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
@@ -80,6 +80,13 @@ export const BOOKING_STATUS: Record<BookingStatus, { label: string; tone: Tone }
   no_show: { label: "উপস্থিত হননি", tone: "neutral" },
 };
 
+export const BUSINESS_STATUS: Record<BusinessStatus, { label: string; tone: Tone }> = {
+  draft: { label: "খসড়া", tone: "neutral" },
+  published: { label: "প্রকাশিত", tone: "green" },
+  suspended: { label: "স্থগিত", tone: "red" },
+  deactivated: { label: "বন্ধ", tone: "neutral" },
+};
+
 export const VERIFICATION_STATUS: Record<VerificationStatus, { label: string; tone: Tone }> = {
   draft: { label: "খসড়া", tone: "neutral" },
   submitted: { label: "জমা হয়েছে", tone: "amber" },
@@ -111,6 +118,7 @@ export const ROLE_NAMES: Record<string, string> = {
   inspector: "ইন্সপেক্টর",
   marketer: "মার্কেটার",
   support_agent: "সাপোর্ট এজেন্ট",
+  platform_analyst: "প্ল্যাটফর্ম বিশ্লেষক",
 };
 
 export const REPORT_REASONS: Record<string, string> = {
