@@ -123,6 +123,15 @@ export function VerificationReview() {
                     <span className="text-sm text-subtle">{i.inspectorName ?? "পরিদর্শক নির্ধারণের অপেক্ষায়"}</span>
                   </div>
                   {i.findings && <p className="mt-2">{i.findings}</p>}
+                  {i.photos.length > 0 && (
+                    <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4" aria-label="পরিদর্শনের ছবি">
+                      {i.photos.map((p) => (
+                        <li key={p.id}><a href={p.imageUrl} target="_blank" rel="noopener">
+                          <img src={p.imageUrl} alt={p.caption ?? "পরিদর্শনের ছবি"} className="aspect-square w-full rounded-md object-cover" />
+                        </a>{p.caption && <p className="mt-1 truncate text-xs text-muted">{p.caption}</p>}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ))}
             </section>
@@ -178,7 +187,7 @@ export function VerificationReview() {
 
 const RESOLUTIONS = [
   { value: "dismiss", label: "খারিজ করুন" }, { value: "resolve", label: "নিষ্পত্তি" }, { value: "hide_review", label: "রিভিউ লুকান" },
-  { value: "remove_review", label: "রিভিউ অপসারণ" }, { value: "request_inspection", label: "মাঠ পরিদর্শন" }, { value: "suspend_business", label: "ব্যবসা স্থগিত" }, { value: "escalate", label: "উচ্চতর পর্যায়ে" },
+  { value: "remove_review", label: "রিভিউ অপসারণ" }, { value: "remove_content", label: "নোটিশ/ছবি সরিয়ে ফেলুন" }, { value: "request_inspection", label: "মাঠ পরিদর্শন" }, { value: "suspend_business", label: "ব্যবসা স্থগিত" }, { value: "escalate", label: "উচ্চতর পর্যায়ে" },
 ];
 
 export function ModerationReports() {
@@ -192,7 +201,9 @@ export function ModerationReports() {
     mutationFn: () => api.post(`/api/moderation/reports/${active!.id}/resolve`, { resolution, reason }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["moderation", "reports"] }); setActive(null); setReason(""); toast("রিপোর্টের সিদ্ধান্ত সংরক্ষিত হয়েছে।"); },
   });
-  const options = RESOLUTIONS.filter((r) => !active || (active.targetType === "review" ? r.value !== "suspend_business" && r.value !== "request_inspection" : !r.value.includes("review")));
+  const options = RESOLUTIONS.filter((r) => !active ||
+    (r.value === "remove_content" ? !!active.content && !active.content.removed
+      : active.targetType === "review" ? r.value !== "suspend_business" && r.value !== "request_inspection" : !r.value.includes("review")));
 
   return (
     <>
@@ -205,6 +216,7 @@ export function ModerationReports() {
               <div className="min-w-0 flex-[1_1_260px]">
                 <div className="font-semibold">{r.targetType === "review" ? `রিভিউ: “${r.reviewComment ?? "—"}”` : r.targetBusinessName ?? "ব্যবহারকারী"}</div>
                 <div className="text-[15px] text-muted">{REPORT_REASONS[r.reason]}{r.description && ` — ${r.description}`}</div>
+                {r.content && <ReportedContent content={r.content} />}
               </div>
               {r.sameTargetReports > 1 && <Badge tone="red">{bn(r.sameTargetReports)}টি রিপোর্ট</Badge>}
               <Badge tone={PRIORITY[r.severity].tone}>{PRIORITY[r.severity].label}</Badge>
@@ -223,6 +235,21 @@ export function ModerationReports() {
         </div>
       </Modal>
     </>
+  );
+}
+
+/** The reported notice or gallery photo, so the moderator can judge it without leaving the queue. */
+function ReportedContent({ content }: { content: NonNullable<ReportItem["content"]> }) {
+  if (content.removed) return <p className="mt-2 text-sm text-subtle">{content.type === "notice" ? "নোটিশটি" : "ছবিটি"} আর পেজে নেই।</p>;
+  return (
+    <div className="mt-2 flex gap-3 rounded-md border border-line bg-bg p-3">
+      {content.imageUrl && <a href={content.imageUrl} target="_blank" rel="noopener"><img src={content.imageUrl} alt="রিপোর্ট করা ছবি" className="size-20 rounded object-cover" /></a>}
+      <div className="min-w-0 text-[15px]">
+        <div className="text-xs text-subtle">{content.type === "notice" ? "রিপোর্ট করা নোটিশ" : "রিপোর্ট করা ছবি"}</div>
+        {content.title && <div className="font-semibold">{content.title}</div>}
+        {content.text && <p className="line-clamp-3 whitespace-pre-line text-muted">{content.text}</p>}
+      </div>
+    </div>
   );
 }
 
