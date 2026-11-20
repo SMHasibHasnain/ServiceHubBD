@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle2, ShieldCheck, Smartphone, Sparkles } from "lucide-react";
+import { CheckCircle2, ShieldCheck, Smartphone } from "lucide-react";
 import type { BillingCycle } from "../../api/types";
 import { ErrorBox, LinkButton, Segmented, Skeleton } from "../../components/ui";
 import { featureValue, usePlans } from "../../lib/billing";
@@ -19,8 +19,8 @@ export default function Pricing() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
       <div className="mx-auto mb-10 flex max-w-2xl flex-col items-center gap-3 text-center">
-        <span className="rounded-full bg-secondary-light px-3 py-1 text-sm font-semibold text-brand-green">ব্যবসার জন্য</span>
-        <h1 className="text-3xl font-bold text-brand-navy sm:text-4xl">আপনার ব্যবসার মাপে প্ল্যান</h1>
+        <span className="font-painted text-2xl text-paint-red">ব্যবসার জন্য</span>
+        <h1 className="text-[32px] leading-tight font-semibold text-primary sm:text-[40px]">আপনার ব্যবসার মাপে প্ল্যান</h1>
         <p className="text-muted">ফ্রিতে শুরু করুন। প্রকাশিত হলেই {c ? bn(c.trialDays) : "১৪"} দিনের প্রো ট্রায়াল — কোনো কার্ড লাগবে না।</p>
         <Segmented label="বিলিং চক্র" value={cycle} onChange={setCycle} options={[{ value: "monthly", label: "মাসিক" }, { value: "yearly", label: "বাৎসরিক · ২ মাস ফ্রি" }]} />
       </div>
@@ -33,13 +33,13 @@ export default function Pricing() {
               const popular = pl.key === "pro";
               return (
                 <article key={pl.key} className={`card relative flex flex-col gap-5 p-6 ${popular ? "border-primary/50 shadow-lift" : ""}`}>
-                  {popular && <span className="absolute -top-3 left-6 inline-flex items-center gap-1 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-white"><Sparkles className="size-3" aria-hidden />সবচেয়ে জনপ্রিয়</span>}
+                  {popular && <span className="absolute -top-3 left-6 rounded-md bg-primary px-2.5 py-0.5 text-xs font-medium text-white">প্রস্তাবিত</span>}
                   <div>
-                    <h2 className="text-xl font-bold">{pl.nameBn}</h2>
+                    <h2 className="text-xl font-semibold">{pl.nameBn}</h2>
                     {pl.taglineBn && <p className="text-sm text-muted">{pl.taglineBn}</p>}
                   </div>
                   <div>
-                    <span className="text-4xl font-bold text-ink">{price ? taka(price) : "৳০"}</span>
+                    <span className="text-4xl font-semibold text-ink tabular-nums">{price ? taka(price) : "৳০"}</span>
                     {price > 0 && <span className="text-sm text-subtle"> / {cycle === "yearly" ? "বছর" : "মাস"}</span>}
                     {cycle === "yearly" && pl.priceMonthly > 0 && <div className="text-sm text-brand-green">মাসে মাত্র {taka(Math.round(pl.priceYearly / 12))}</div>}
                   </div>
@@ -73,7 +73,7 @@ export default function Pricing() {
           </div>
 
           <section className="mx-auto mt-14 max-w-3xl" aria-labelledby="faq-h">
-            <h2 id="faq-h" className="mb-4 text-xl font-bold text-brand-navy">সাধারণ প্রশ্ন</h2>
+            <h2 id="faq-h" className="mb-4 text-xl font-semibold text-primary">সাধারণ প্রশ্ন</h2>
             <div className="flex flex-col gap-2">
               {FAQ.map(([q, a]) => (
                 <details key={q} className="card group p-4 open:shadow-card">
