@@ -42,6 +42,14 @@ public static class P
     public const string AuditView = "audit.view";
     public const string SubscriptionsManage = "subscriptions.manage";
     public const string SiteContentManage = "site_content.manage";
+    // Platform staff acting on any business (see AccessService.RequireBusinessOrStaffAsync and StaffGrants).
+    public const string BusinessesView = "businesses.view";
+    public const string BusinessesEdit = "businesses.edit";
+    public const string BusinessesTeam = "businesses.team";
+    public const string BusinessesDelete = "businesses.delete";
+    public const string BusinessesUndo = "businesses.undo";
+    public const string PageDefaultsManage = "page_defaults.manage";
+    public const string PlatformAnalyticsView = "platform_analytics.view";
 
     public static readonly (string Key, RoleScope Scope, string Module, string Description)[] All =
     [
@@ -80,7 +88,30 @@ public static class P
         (AuditView, RoleScope.Platform, "admin", "অডিট লগ দেখা"),
         (SubscriptionsManage, RoleScope.Platform, "billing", "সাবস্ক্রিপশন, পেমেন্ট যাচাই ও প্ল্যান প্রদান"),
         (SiteContentManage, RoleScope.Platform, "admin", "হোমপেজের লেখা, সেকশন ও সাইটের হেডার-ফুটার সম্পাদনা"),
+        (BusinessesView, RoleScope.Platform, "businesses", "সব ব্যবসার তালিকা ও ওয়ার্কস্পেস দেখা"),
+        (BusinessesEdit, RoleScope.Platform, "businesses", "যেকোনো ব্যবসার সেটিংস, পেজ, সেবা ও ছবি সম্পাদনা"),
+        (BusinessesTeam, RoleScope.Platform, "businesses", "যেকোনো ব্যবসার টিম ও ভূমিকা পরিবর্তন"),
+        (BusinessesDelete, RoleScope.Platform, "businesses", "যেকোনো ব্যবসা মুছে ফেলা (সফট ডিলিট)"),
+        (BusinessesUndo, RoleScope.Platform, "businesses", "কর্মীদের করা পরিবর্তন ফিরিয়ে নেওয়া"),
+        (PageDefaultsManage, RoleScope.Platform, "businesses", "ব্যবসা পেজের ডিফল্ট থিম ও সেকশন নির্ধারণ"),
+        (PlatformAnalyticsView, RoleScope.Platform, "admin", "প্ল্যাটফর্ম বিশ্লেষণ দেখা"),
     ];
+
+    /// <summary>
+    /// Business permissions a platform staff member gets on a business they are not a member of, and the platform
+    /// permission that grants each one. Members always use their own role instead (conflict of interest).
+    /// Bookings, customers, reviews, billing and verification stay with the business's own team.
+    /// </summary>
+    public static readonly Dictionary<string, string[]> StaffGrants = new()
+    {
+        [BusinessView] = [BusinessesView, BusinessesEdit, BusinessesTeam],
+        [AnalyticsView] = [BusinessesView],
+        [BusinessUpdate] = [BusinessesEdit],
+        [ServicesManage] = [BusinessesEdit],
+        [MembersView] = [BusinessesTeam],
+        [MembersManage] = [BusinessesTeam],
+        [BusinessDelete] = [BusinessesDelete],
+    };
 }
 
 /// <summary>Seeded system roles. Ownership is a business role, not an account type.</summary>
@@ -98,6 +129,7 @@ public static class R
     public const string Inspector = "inspector";
     public const string Marketer = "marketer";
     public const string SupportAgent = "support_agent";
+    public const string PlatformAnalyst = "platform_analyst";
 
     public record RoleDef(string Key, RoleScope Scope, string NameBn, string NameEn, short Rank,
         WorkspaceType Workspace, string[] Permissions);
@@ -123,13 +155,16 @@ public static class R
         new(Admin, RoleScope.Platform, "এ্যাডমিন", "Admin", 90, WorkspaceType.Administration,
             AllPlatform.Where(k => k != P.RolesAssignAdmin && k != P.SiteContentManage).ToArray()),
         new(SystemModerator, RoleScope.Platform, "সিস্টেম মডারেটর", "System moderator", 50, WorkspaceType.Moderation,
-            [P.VerificationReview, P.ReportsReview, P.ReviewsModerate, P.BusinessesSuspend, P.InspectionsRequest]),
+            [P.VerificationReview, P.ReportsReview, P.ReviewsModerate, P.BusinessesSuspend, P.InspectionsRequest,
+             P.BusinessesView, P.BusinessesEdit]),
         new(Inspector, RoleScope.Zone, "ইন্সপেক্টর", "Inspector", 40, WorkspaceType.Inspection,
             [P.InspectionsPerform]),
         new(Marketer, RoleScope.Platform, "মার্কেটার", "Marketer", 40, WorkspaceType.Marketing,
             [P.CampaignsManage]),
         new(SupportAgent, RoleScope.Platform, "সাপোর্ট এজেন্ট", "Support agent", 30, WorkspaceType.Administration,
-            [P.UsersView]),
+            [P.UsersView, P.PlatformAnalyticsView]),
+        new(PlatformAnalyst, RoleScope.Platform, "প্ল্যাটফর্ম বিশ্লেষক", "Platform analyst", 35, WorkspaceType.Administration,
+            [P.BusinessesView, P.PlatformAnalyticsView]),
     ];
 
     public static RoleDef Get(string key) => All.Single(r => r.Key == key);
