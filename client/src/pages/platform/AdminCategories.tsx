@@ -4,7 +4,7 @@ import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
 import { api } from "../../api/client";
 import type { AdminCategory, RecordStatus } from "../../api/types";
 import { CategoryTile } from "../../components/brand";
-import { Badge, Button, EmptyState, ErrorBox, Field, LoadingList, Modal, PageHeader, useToast } from "../../components/ui";
+import { Badge, Button, EmptyState, ErrorBox, Field, LoadingList, Modal, PageHeader, Pagination, useClientPage, useToast } from "../../components/ui";
 import { bn } from "../../lib/format";
 
 const STATUS: Record<RecordStatus, { label: string; tone: "green" | "neutral" | "amber" }> = {
@@ -51,6 +51,8 @@ export default function AdminCategories() {
 
   const all = list.data ?? [];
   const parents = all.filter((c) => c.parentId === null);
+  // Paged by top-level category so subcategories always stay with their parent.
+  const paged = useClientPage(parents, null, 10);
   const childrenOf = (id: number) => all.filter((c) => c.parentId === id);
 
   const open = (f: Form) => { saveCat.reset(); setSlugTouched(!!f.id); setForm(f); };
@@ -104,11 +106,12 @@ export default function AdminCategories() {
               <tr><th className="px-5 py-3 font-medium">ক্যাটাগরি</th><th className="px-3 py-3 font-medium">অবস্থা</th><th className="px-3 py-3 font-medium">ক্রম</th><th className="px-3 py-3 font-medium">ব্যবহার</th><th className="px-5 py-3"><span className="sr-only">কাজ</span></th></tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {parents.flatMap((p) => [row(p), ...childrenOf(p.id).map((c) => row(c, true))])}
+              {paged.items.flatMap((p) => [row(p), ...childrenOf(p.id).map((c) => row(c, true))])}
             </tbody>
           </table>
         </div>
       )}
+      <Pagination page={paged.page} total={paged.total} pageSize={paged.pageSize} onChange={paged.setPage} label="ক্যাটাগরির পাতা" />
 
       <Modal open={!!form} onClose={() => setForm(null)} title={form?.id ? "ক্যাটাগরি সম্পাদনা" : "নতুন ক্যাটাগরি"}
         footer={<><Button variant="ghost" onClick={() => setForm(null)}>বাতিল</Button><Button type="submit" form="category-form" loading={saveCat.isPending}>সংরক্ষণ করুন</Button></>}>
