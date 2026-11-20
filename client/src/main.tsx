@@ -4,7 +4,7 @@ import { createBrowserRouter, Navigate, Outlet, RouterProvider } from "react-rou
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError } from "./api/client";
 import { AuthProvider, RequireAuth } from "./auth/AuthContext";
-import { BusinessLayout, CustomerLayout, PlatformLayout, PublicLayout } from "./components/Layouts";
+import { BrowseLayout, BusinessLayout, CustomerLayout, PlatformLayout, PublicLayout } from "./components/Layouts";
 import { EmptyState, LinkButton, ToastProvider } from "./components/ui";
 import Landing from "./pages/public/Landing";
 import "./index.css";
@@ -16,6 +16,8 @@ const Booking = lazy(() => import("./pages/public/Booking"));
 const MyBookings = lazy(() => import("./pages/me/MyBookings"));
 const Notifications = lazy(() => import("./pages/me/Notifications"));
 const Profile = lazy(() => import("./pages/me/Profile"));
+const Saved = lazy(() => import("./pages/me/Saved"));
+const MyDay = lazy(() => import("./pages/business/MyDay"));
 const CreateBusiness = lazy(() => import("./pages/business/CreateBusiness"));
 const Dashboard = lazy(() => import("./pages/business/Dashboard"));
 const Bookings = lazy(() => import("./pages/business/Bookings"));
@@ -23,7 +25,22 @@ const Services = lazy(() => import("./pages/business/Services"));
 const Customers = lazy(() => import("./pages/business/Customers"));
 const Reviews = lazy(() => import("./pages/business/Reviews"));
 const Team = lazy(() => import("./pages/business/Team"));
+const TeamMembers = lazy(() => import("./pages/business/Team").then((m) => ({ default: m.TeamMembers })));
+const TeamInvitations = lazy(() => import("./pages/business/Team").then((m) => ({ default: m.TeamInvitations })));
+const TeamLeave = lazy(() => import("./pages/business/Team").then((m) => ({ default: m.TeamLeave })));
 const Settings = lazy(() => import("./pages/business/Settings"));
+const SettingsIndex = lazy(() => import("./pages/business/Settings").then((m) => ({ default: m.SettingsIndex })));
+const SettingsProfile = lazy(() => import("./pages/business/Settings").then((m) => ({ default: m.SettingsProfile })));
+const SettingsHours = lazy(() => import("./pages/business/Settings").then((m) => ({ default: m.SettingsHours })));
+const SettingsBooking = lazy(() => import("./pages/business/Settings").then((m) => ({ default: m.SettingsBooking })));
+const SettingsVerification = lazy(() => import("./pages/business/Settings").then((m) => ({ default: m.SettingsVerification })));
+const SettingsAccount = lazy(() => import("./pages/business/Settings").then((m) => ({ default: m.SettingsAccount })));
+const PageDesign = lazy(() => import("./pages/business/PageDesign"));
+const PageNotices = lazy(() => import("./pages/business/PageDesign").then((m) => ({ default: m.PageNotices })));
+const PageLook = lazy(() => import("./pages/business/PageDesign").then((m) => ({ default: m.PageLook })));
+const PageGallery = lazy(() => import("./pages/business/PageDesign").then((m) => ({ default: m.PageGallery })));
+const PageContent = lazy(() => import("./pages/business/PageDesign").then((m) => ({ default: m.PageContent })));
+const PageTeam = lazy(() => import("./pages/business/PageDesign").then((m) => ({ default: m.PageTeam })));
 const Moderation = lazy(() => import("./pages/platform/Moderation").then((m) => ({ default: m.ModerationQueue })));
 const VerificationReview = lazy(() => import("./pages/platform/Moderation").then((m) => ({ default: m.VerificationReview })));
 const ModerationReports = lazy(() => import("./pages/platform/Moderation").then((m) => ({ default: m.ModerationReports })));
@@ -65,14 +82,23 @@ const router = createBrowserRouter([
     element: <Root />,
     children: [
       {
+        // Marketing pages: always the public topbar and footer.
         element: <PublicLayout />,
         children: [
           { path: "/", element: <Landing /> },
-          { path: "/search", element: <Search /> },
           { path: "/pricing", element: <Pricing /> },
+          // The owner's preview shows the page as a guest sees it.
+          { path: "/preview/:businessId", element: <Protected><BusinessProfile preview /></Protected> },
+          { path: "*", element: <NotFound /> },
+        ],
+      },
+      {
+        // Finding and booking: signed-in customers keep their sidebar, guests get the public layout.
+        element: <BrowseLayout />,
+        children: [
+          { path: "/search", element: <Search /> },
           { path: "/b/:slug", element: <BusinessProfile /> },
           { path: "/b/:slug/book", element: <Protected><Booking /></Protected> },
-          { path: "*", element: <NotFound /> },
         ],
       },
       { path: "/login", element: <AuthPage mode="login" /> },
@@ -85,6 +111,7 @@ const router = createBrowserRouter([
           { path: "bookings", element: <MyBookings /> },
           { path: "notifications", element: <Notifications /> },
           { path: "profile", element: <Profile /> },
+          { path: "saved", element: <Saved /> },
         ],
       },
       { path: "/business/new", element: <Protected><CreateBusiness /></Protected> },
@@ -97,8 +124,38 @@ const router = createBrowserRouter([
           { path: "services", element: <Services /> },
           { path: "customers", element: <Customers /> },
           { path: "reviews", element: <Reviews /> },
-          { path: "team", element: <Team /> },
-          { path: "settings", element: <Settings /> },
+          {
+            path: "team", element: <Team />,
+            children: [
+              { index: true, element: <Navigate to="members" replace /> },
+              { path: "members", element: <TeamMembers /> },
+              { path: "invitations", element: <TeamInvitations /> },
+              { path: "leave", element: <TeamLeave /> },
+            ],
+          },
+          {
+            path: "settings", element: <Settings />,
+            children: [
+              { index: true, element: <SettingsIndex /> },
+              { path: "profile", element: <SettingsProfile /> },
+              { path: "hours", element: <SettingsHours /> },
+              { path: "booking", element: <SettingsBooking /> },
+              { path: "verification", element: <SettingsVerification /> },
+              { path: "account", element: <SettingsAccount /> },
+            ],
+          },
+          {
+            path: "page", element: <PageDesign />,
+            children: [
+              { index: true, element: <Navigate to="notices" replace /> },
+              { path: "notices", element: <PageNotices /> },
+              { path: "look", element: <PageLook /> },
+              { path: "gallery", element: <PageGallery /> },
+              { path: "content", element: <PageContent /> },
+              { path: "team", element: <PageTeam /> },
+            ],
+          },
+          { path: "my-day", element: <MyDay /> },
           { path: "analytics", element: <BusinessAnalytics /> },
           { path: "billing", element: <Billing /> },
           { path: "notifications", element: <Notifications workspace="business" /> },
