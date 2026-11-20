@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Phone } from "lucide-react";
+import { CalendarClock, CalendarDays, Phone } from "lucide-react";
 import { api } from "../../api/client";
 import type { Booking, BookingStatus, Member, Paged } from "../../api/types";
 import { Avatar, Badge, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, useToast } from "../../components/ui";
@@ -66,6 +66,8 @@ export default function Bookings() {
                   <div className="text-[15px] text-muted">{b.serviceName}{b.assignedTo && ` · ${b.assignedTo.name}`}</div>
                 </div>
                 <span className="font-num text-sm text-subtle">{b.bookingNumber}</span>
+                {b.reschedule?.status === "pending" && <Badge tone="amber"><CalendarClock className="size-3.5" aria-hidden />সময় বদলের অনুরোধ</Badge>}
+                {b.status === "confirmed" && b.progress && <Badge tone="blue">{b.progress === "on_the_way" ? "রওনা দিয়েছেন" : "কাজ চলছে"}</Badge>}
                 <Badge tone={BOOKING_STATUS[b.status].tone}>{BOOKING_STATUS[b.status].label}</Badge>
               </button>
             </li>
@@ -83,7 +85,7 @@ export default function Bookings() {
 function BookingDetail({ businessId, bookingId, permissions, onClose }: { businessId: string; bookingId: string; permissions: string[]; onClose: () => void }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const [reasonFor, setReasonFor] = useState<"reject" | "cancel" | null>(null);
+  const [reasonFor, setReasonFor] = useState<"reject" | "cancel" | "reschedule" | null>(null);
   const [reason, setReason] = useState("");
   const [finalPrice, setFinalPrice] = useState("");
   const [note, setNote] = useState<string | null>(null);
@@ -115,6 +117,17 @@ function BookingDetail({ businessId, bookingId, permissions, onClose }: { busine
     },
   });
 
+  // Reschedule answers return no body, so refetch instead of replacing the cached booking.
+  const reschedule = useMutation({
+    mutationFn: (answer: { accept: true } | { accept: false; reason: string }) =>
+      api.post(`/api/businesses/${businessId}/bookings/${bookingId}/reschedule/${answer.accept ? "accept" : "reject"}`, answer.accept ? {} : { reason: answer.reason }),
+    onSuccess: (_, answer) => {
+      qc.invalidateQueries({ queryKey: ["business", businessId] });
+      setReasonFor(null); setReason("");
+      toast(answer.accept ? "নতুন সময় নিশ্চিত হয়েছে। গ্রাহককে জানানো হয়েছে।" : "অনুরোধটি প্রত্যাখ্যান করা হয়েছে।");
+    },
+  });
+
   const b = booking.data;
   const started = b ? new Date(b.startAt) <= new Date() : false;
 
@@ -135,11 +148,32 @@ function BookingDetail({ businessId, bookingId, permissions, onClose }: { busine
       )}>
       {!b ? <LoadingList rows={2} /> : (
         <div className="flex flex-col gap-5">
-          <ErrorBox error={act.error} />
+          <ErrorBox error={act.error ?? reschedule.error} />
           <div className="flex flex-wrap items-center gap-3">
             <Badge tone={BOOKING_STATUS[b.status].tone}>{BOOKING_STATUS[b.status].label}</Badge>
             <span className="text-muted">{dateLong(b.startAt)}, {timeOnly(b.startAt)}</span>
+            {b.status === "confirmed" && b.progress && (
+              <Badge tone="blue">{b.assignedTo?.name ?? "টিম"} {b.progress === "on_the_way" ? "রওনা দিয়েছেন" : "কাজ শুরু করেছেন"} · {timeOnly(b.progressAt!)}</Badge>
+            )}
           </div>
+          {b.reschedule?.status === "pending" && (
+            <div className="flex flex-col gap-3 rounded-md border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-start gap-2">
+                <CalendarClock className="mt-0.5 size-5 shrink-0 text-amber-700" aria-hidden />
+                <div>
+                  <div className="font-semibold">গ্রাহক সময় বদলাতে চান</div>
+                  <div className="text-[15px]">{dateLong(b.reschedule.previousStartAt)}, {timeOnly(b.reschedule.previousStartAt)} → <strong>{dateLong(b.reschedule.proposedStartAt)}, {timeOnly(b.reschedule.proposedStartAt)}</strong></div>
+                  {b.reschedule.reason && <div className="text-[15px] text-muted">কারণ: {b.reschedule.reason}</div>}
+                </div>
+              </div>
+              {manage && reasonFor !== "reschedule" && (
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" loading={reschedule.isPending} onClick={() => reschedule.mutate({ accept: true })}>নতুন সময় মেনে নিন</Button>
+                  <Button size="sm" variant="danger" onClick={() => setReasonFor("reschedule")}>প্রত্যাখ্যান</Button>
+                </div>
+              )}
+            </div>
+          )}
           <dl className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-md bg-bg p-4"><dt className="text-sm text-subtle">গ্রাহক</dt><dd className="font-semibold">{b.customerName}</dd>
               <dd><a href={`tel:${b.customerPhone}`} className="inline-flex min-h-9 items-center gap-1.5 font-num text-primary"><Phone className="size-4" aria-hidden />{b.customerPhone}</a></dd></div>
@@ -170,12 +204,13 @@ function BookingDetail({ businessId, bookingId, permissions, onClose }: { busine
 
           {reasonFor && (
             <div className="flex flex-col gap-3 rounded-md border border-red-200 bg-red-50 p-4">
-              <label className="label">{reasonFor === "reject" ? "প্রত্যাখ্যানের কারণ" : "বাতিলের কারণ"} <span className="text-sm font-normal">(গ্রাহক দেখবেন)</span>
+              <label className="label">{reasonFor === "reject" ? "প্রত্যাখ্যানের কারণ" : reasonFor === "reschedule" ? "অনুরোধ প্রত্যাখ্যানের কারণ" : "বাতিলের কারণ"} <span className="text-sm font-normal">(গ্রাহক দেখবেন)</span>
                 <textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
               </label>
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={() => setReasonFor(null)}>ফিরে যান</Button>
-                <Button variant="danger" disabled={reason.trim().length < 3} loading={act.isPending} onClick={() => act.mutate({ action: reasonFor, body: { reason } })}>নিশ্চিত করুন</Button>
+                <Button variant="danger" disabled={reason.trim().length < 3} loading={act.isPending || reschedule.isPending}
+                  onClick={() => reasonFor === "reschedule" ? reschedule.mutate({ accept: false, reason }) : act.mutate({ action: reasonFor, body: { reason } })}>নিশ্চিত করুন</Button>
               </div>
             </div>
           )}
@@ -185,8 +220,8 @@ function BookingDetail({ businessId, bookingId, permissions, onClose }: { busine
             <ol className="flex flex-col gap-2 border-l-2 border-line pl-4">
               {b.history.map((h, i) => (
                 <li key={i} className="text-[15px]">
-                  <span className="font-semibold">{BOOKING_STATUS[h.to].label}</span> <span className="text-subtle">· {dateTime(h.at)}</span>
-                  {h.reason && <div className="text-muted">কারণ: {h.reason}</div>}
+                  <span className="font-semibold">{h.from === h.to ? "সময় পরিবর্তন" : BOOKING_STATUS[h.to].label}</span> <span className="text-subtle">· {dateTime(h.at)}</span>
+                  {h.reason && <div className="text-muted">{h.from === h.to ? h.reason.replace(/^সময় পরিবর্তন:\s*/, "") : `কারণ: ${h.reason}`}</div>}
                 </li>
               ))}
             </ol>
