@@ -15,7 +15,7 @@ export function SectionTabs({ items, label, permissions }: { items: SectionTab[]
       <div className="inline-flex max-w-full gap-0.5 overflow-x-auto rounded-[12px] bg-zinc-100 p-1">
         {visible.map((t) => (
           <NavLink key={t.to} to={t.to}
-            className={({ isActive }) => `flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-[8px] px-3.5 text-sm font-medium ${isActive ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}>
+            className={({ isActive }) => `flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-[8px] px-3.5 text-sm font-medium transition-colors duration-150 ${isActive ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}>
             {t.label}
           </NavLink>
         ))}
