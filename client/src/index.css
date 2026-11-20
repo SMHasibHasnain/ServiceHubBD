@@ -44,6 +44,20 @@
   --color-subtle: #6c6555;
   --color-disabled: #ebe2cf;
 
+  /* Workspaces use Tailwind's zinc greys everywhere. Re-tinted warm so borders, fills and muted text sit on the
+     same ramp as the cream ground and the sand lines, instead of a second, cool grey family. */
+  --color-zinc-50: #f9f7f3;
+  --color-zinc-100: #f2efe9;
+  --color-zinc-200: #e7e2d9;
+  --color-zinc-300: #d6d0c5;
+  --color-zinc-400: #a9a294;
+  --color-zinc-500: #7c7568;
+  --color-zinc-600: #5f594e;
+  --color-zinc-700: #49443c;
+  --color-zinc-800: #312e29;
+  --color-zinc-900: #201e1b;
+  --color-zinc-950: #151412;
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -53,6 +67,10 @@
   --shadow-card: 0 1px 2px rgb(23 25 43 / 0.04), 0 4px 16px -4px rgb(23 25 43 / 0.08);
   --shadow-lift: 0 2px 4px rgb(23 25 43 / 0.04), 0 16px 32px -12px rgb(23 25 43 / 0.18);
   --shadow-pop: 0 12px 40px -8px rgb(23 25 43 / 0.22), 0 0 0 1px rgb(23 25 43 / 0.05);
+
+  /* One easing curve for every transition. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @layer base {
@@ -86,7 +104,7 @@
 
 @layer components {
   .input {
-    @apply w-full min-h-11 rounded-md border border-zinc-300 bg-surface px-3.5 text-[15px] text-ink shadow-soft placeholder:text-zinc-400 transition focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 disabled:bg-zinc-50 disabled:text-subtle;
+    @apply w-full min-h-11 rounded-md border border-zinc-300 bg-surface px-3.5 text-[15px] text-ink shadow-soft placeholder:text-zinc-400 transition-[border-color,box-shadow] duration-150 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 disabled:bg-zinc-50 disabled:text-subtle;
   }
   textarea.input {
     @apply py-2.5;
@@ -95,7 +113,7 @@
     @apply rounded-lg border border-line bg-surface shadow-soft;
   }
   .card-hover {
-    @apply transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lift;
+    @apply transition-[border-color,box-shadow] duration-150 hover:border-primary/30 hover:shadow-lift;
   }
   .label {
     @apply flex flex-col gap-1.5 text-sm font-medium;
@@ -111,14 +129,15 @@
     font-weight: 400;
     text-shadow: 2px 2px 0 var(--color-cream);
   }
-  /* Signboard card: cream panel, ink outline, hard coloured offset shadow. */
+  /* Signboard card: cream panel, ink outline, hard navy offset shadow. A clickable one (`.signboard-link`)
+     is pushed into its shadow while pressed. */
   .signboard {
-    @apply flex flex-col overflow-hidden border-[2.5px] border-ink bg-paper transition duration-200;
+    @apply flex flex-col overflow-hidden border-[2.5px] border-ink bg-paper transition-[transform,box-shadow] duration-150;
     box-shadow: 6px 6px 0 var(--signboard-shadow, var(--color-primary));
   }
-  .signboard:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 8px 8px 0 var(--signboard-shadow, var(--color-primary));
+  .signboard-link:active {
+    transform: translate(2px, 2px);
+    box-shadow: 4px 4px 0 var(--signboard-shadow, var(--color-primary));
   }
   .bg-brand {
     background: var(--color-primary);
@@ -130,9 +149,9 @@
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
 }
-.sign-swap { animation: sign-swap 0.45s ease-out both; }
+.sign-swap { animation: sign-swap 0.4s var(--ease-out) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .signboard, .signboard:hover { transition: none; transform: none; }
+  .signboard, .signboard-link:active { transition: none; transform: none; }
   .sign-swap { animation: none; }
 }
