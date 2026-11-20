@@ -1,30 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, Clock, Flag, Heart, Home, MapPin, Share2, Siren } from "lucide-react";
+import { BadgeCheck, ChevronLeft, ChevronRight, Clock, Flag, Heart, Home, Languages, MapPin, Megaphone, Pin, Share2, Siren, X } from "lucide-react";
 import { api } from "../../api/client";
-import type { PublicBusiness } from "../../api/types";
+import type { GalleryItem, PublicBusiness, SectionKey } from "../../api/types";
 import { useAuth } from "../../auth/AuthContext";
 import { Avatar, Badge, Button, EmptyState, ErrorBox, LinkButton, Modal, Skeleton, Stars, useToast } from "../../components/ui";
 import { CoverArt } from "../../components/brand";
+import { ReviewPhotos } from "../../components/shared";
 import { DAY_NAMES, REPORT_REASONS, bdDayOfWeek, bn, clock, dateShort, duration, priceLabel, todayBd } from "../../lib/format";
+import { HIGHLIGHT_ICONS, LANGUAGES, themeStyle } from "../../lib/page";
 
-export default function BusinessProfile() {
-  const { slug } = useParams();
+/**
+ * The public business page. With `preview`, it shows the owner's page (any status) from the members-only
+ * preview endpoint, looking exactly the same, but booking, saving, sharing, reporting and links do nothing.
+ */
+export default function BusinessProfile({ preview = false }: { preview?: boolean }) {
+  const { slug, businessId } = useParams();
   const { status } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const qc = useQueryClient();
-  const [reportOpen, setReportOpen] = useState(false);
+  // null = closed; {} = the whole business; with content = one notice or gallery photo.
+  const [report, setReport] = useState<ReportTarget | null>(null);
 
   const { data: b, isLoading, error } = useQuery({
-    queryKey: ["public", "business", slug],
-    queryFn: () => api.get<PublicBusiness>(`/api/public/businesses/${slug}`),
+    queryKey: preview ? ["business", businessId, "page", "preview"] : ["public", "business", slug],
+    queryFn: () => api.get<PublicBusiness>(preview ? `/api/businesses/${businessId}/page/preview` : `/api/public/businesses/${slug}`),
   });
   const favourites = useQuery({
     queryKey: ["favourites"],
     queryFn: () => api.get<string[]>("/api/me/favourites"),
-    enabled: status === "authenticated",
+    enabled: status === "authenticated" && !preview,
   });
   const isFav = !!b && !!favourites.data?.includes(b.id);
   const fav = useMutation({
@@ -41,9 +48,12 @@ export default function BusinessProfile() {
   const totalReviews = Object.values(b.ratingDistribution).reduce((s, n) => s + n, 0);
   const firstService = b.services.find((s) => s.availability === "available");
   const bookUrl = (serviceId?: string) => `/b/${b.slug}/book${serviceId ? `?serviceId=${serviceId}` : ""}`;
-  const requireLogin = (fn: () => void) => (status === "authenticated" ? fn() : navigate(`/login?next=${encodeURIComponent(`/b/${b.slug}`)}`));
+  const previewOnly = () => toast("এটি প্রিভিউ। এখানে বুকিং, সংরক্ষণ বা রিপোর্ট করা যায় না।");
+  const requireLogin = (fn: () => void) =>
+    preview ? previewOnly() : status === "authenticated" ? fn() : navigate(`/login?next=${encodeURIComponent(`/b/${b.slug}`)}`);
 
   const share = async () => {
+    if (preview) return previewOnly();
     const url = window.location.href;
     try {
       if (navigator.share) await navigator.share({ title: b.name, url });
@@ -51,28 +61,47 @@ export default function BusinessProfile() {
     } catch { /* cancelled */ }
   };
 
+  // Each section renders nothing when it has no content, so empty sections never show as blank cards.
+  const sectionView: Record<SectionKey, ReactNode> = {
+    notices: <NoticeBoard notices={b.notices} onReport={(n) => requireLogin(() => setReport({ contentType: "notice", contentId: n.id, label: `নোটিশ: “${n.title}”` }))} />,
+    highlights: <HighlightsSection items={b.highlights} />,
+    services: <ServicesSection b={b} bookUrl={bookUrl} />,
+    gallery: <GallerySection items={b.gallery} name={b.name} onReport={(g) => requireLogin(() => setReport({ contentType: "gallery_item", contentId: g.id!, label: g.caption ? `ছবি: “${g.caption}”` : "গ্যালারির ছবি" }))} />,
+    reviews: <ReviewsSection b={b} totalReviews={totalReviews} />,
+    faqs: <FaqSection items={b.faqs} />,
+    team: <TeamSection members={b.team} />,
+    about: <AboutSection b={b} today={today} onReport={() => requireLogin(() => setReport({}))} />,
+  };
+
   return (
-    <div className="mx-auto max-w-7xl px-4 pt-6 pb-28 sm:px-6 lg:pb-6">
+    <div className="mx-auto max-w-7xl px-4 pt-6 pb-28 sm:px-6 lg:pb-6" style={themeStyle(b.themeKey)}
+      // In preview every link (book, website, search) is inert; in-page controls like the gallery still work.
+      onClickCapture={preview ? (e) => { if ((e.target as HTMLElement).closest("a")) { e.preventDefault(); e.stopPropagation(); previewOnly(); } } : undefined}>
       <section>
         <div className="h-40 overflow-hidden rounded-xl border border-line sm:h-64">
-          {b.coverUrl ? <img src={b.coverUrl} alt={`${b.name} কভার ছবি`} className="size-full object-cover" /> : <CoverArt categoryId={b.categoryId} className="size-full" />}
+          {b.headerStyle === "color" ? (
+            <div className="relative size-full" style={{ background: "linear-gradient(135deg, var(--color-primary-hover), var(--color-primary))" }}>
+              <div className="absolute inset-0 opacity-25 [background-image:radial-gradient(rgb(255_255_255/0.5)_1px,transparent_1px)] [background-size:18px_18px]" aria-hidden />
+            </div>
+          ) : b.coverUrl ? <img src={b.coverUrl} alt={`${b.name} কভার ছবি`} className="size-full object-cover" /> : <CoverArt categoryId={b.categoryId} className="size-full" />}
         </div>
-        <div className="relative z-10 -mt-10 flex flex-wrap items-end gap-4 px-2 sm:-mt-12 sm:gap-5 sm:px-6">
+        <div className="relative z-10 -mt-10 flex flex-wrap items-start gap-4 px-2 sm:-mt-12 sm:gap-5 sm:px-6">
           <span className="rounded-xl border-4 border-white bg-white shadow-lift">
             {b.logoUrl ? <img src={b.logoUrl} alt="" className="size-24 rounded-lg object-cover sm:size-28" /> : <Avatar name={b.name} className="size-20 text-2xl sm:size-28 sm:text-3xl" />}
           </span>
-          <div className="min-w-0 flex-[1_1_320px] pb-1">
+          <div className="min-w-0 flex-[1_1_320px] pt-1 sm:pt-14">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-2xl font-bold text-brand-navy sm:text-3xl">{b.name}</h1>
-              <Badge tone="teal"><BadgeCheck className="size-4" aria-hidden />যাচাইকৃত ব্যবসা</Badge>
+              {b.isVerified && <Badge tone="teal"><BadgeCheck className="size-4" aria-hidden />যাচাইকৃত ব্যবসা</Badge>}
             </div>
             <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-muted">
               <span>{b.categoryName}</span>
               {b.reviewCount > 0 && <span><Stars value={b.avgRating} /> ({bn(b.reviewCount)} রিভিউ)</span>}
               {b.zoneName && <span className="flex items-center gap-1"><MapPin className="size-4" aria-hidden />{b.zoneName}</span>}
             </div>
+            {b.tagline && <p className="mt-1 font-medium text-zinc-700">{b.tagline}</p>}
           </div>
-          <div className="flex gap-2 pb-1">
+          <div className="flex gap-2 self-end pb-1">
             <Button variant="outline" size="sm" onClick={() => requireLogin(() => fav.mutate())} loading={fav.isPending} aria-pressed={isFav}
               className={isFav ? "border-rose-300 bg-rose-50 text-rose-700" : ""}>
               <Heart className="size-4" fill={isFav ? "currentColor" : "none"} aria-hidden />{isFav ? "সংরক্ষিত" : "সংরক্ষণ করুন"}
@@ -93,100 +122,15 @@ export default function BusinessProfile() {
             ].map(([k, v]) => <div key={k} className="card p-4"><div className="text-sm text-subtle">{k}</div><div className="font-semibold">{v}</div></div>)}
           </div>
 
-          {(b.offersHomeService || b.offersEmergencyService) && (
+          {(b.offersHomeService || b.offersEmergencyService || b.languages.length > 0) && (
             <div className="flex flex-wrap gap-2">
               {b.offersHomeService && <Badge tone="blue"><Home className="size-4" aria-hidden />হোম সার্ভিস</Badge>}
               {b.offersEmergencyService && <Badge tone="amber"><Siren className="size-4" aria-hidden />জরুরি সেবা</Badge>}
+              {b.languages.length > 0 && <Badge><Languages className="size-4" aria-hidden />{b.languages.map((l) => LANGUAGES[l] ?? l).join(", ")}</Badge>}
             </div>
           )}
 
-          <section className="card p-6" aria-labelledby="services">
-            <h2 id="services" className="mb-4 text-base font-semibold">সেবাসমূহ</h2>
-            {b.services.length === 0 ? <p className="text-muted">এখনও কোনো সেবা যোগ করা হয়নি।</p> : (
-              <ul className="flex flex-col gap-3">
-                {b.services.map((s) => (
-                  <li key={s.id} className="flex flex-wrap items-center gap-4 rounded-md border border-line p-4">
-                    <div className="min-w-0 flex-[1_1_240px]">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold">{s.name}</span>
-                        {s.isFeatured && <Badge tone="amber" className="text-xs">ফিচার্ড</Badge>}
-                        {s.availability !== "available" && <Badge className="text-xs">এখন পাওয়া যাচ্ছে না</Badge>}
-                      </div>
-                      {s.shortDescription && <p className="text-[15px] text-muted">{s.shortDescription}</p>}
-                      <p className="text-sm text-subtle"><Clock className="mr-1 inline size-4" aria-hidden />{duration(s.durationMinutes)}{s.avgRating > 0 && <> · ★ {bn(s.avgRating)}</>}</p>
-                    </div>
-                    <div className="min-w-24 text-lg font-semibold">{priceLabel(s.priceType, s.price, s.priceMax)}</div>
-                    <LinkButton to={bookUrl(s.id)} size="sm" className={s.availability !== "available" ? "pointer-events-none opacity-50" : ""} aria-disabled={s.availability !== "available"}>বুক করুন</LinkButton>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="card p-6" aria-labelledby="reviews">
-            <h2 id="reviews" className="mb-5 text-base font-semibold">গ্রাহক রিভিউ</h2>
-            {totalReviews === 0 ? <p className="text-muted">এখনও কোনো রিভিউ নেই। শুধুমাত্র সম্পন্ন বুকিংয়ের গ্রাহকরাই রিভিউ দিতে পারেন।</p> : (
-              <>
-                <div className="mb-6 flex flex-wrap items-center gap-8">
-                  <div className="text-center">
-                    <div className="font-num text-4xl font-semibold leading-none">{bn(b.avgRating)}</div>
-                    <div className="text-lg tracking-widest text-amber-600" aria-hidden>{"★".repeat(Math.round(b.avgRating))}</div>
-                    <div className="text-sm text-subtle">{bn(b.reviewCount)} রিভিউ</div>
-                  </div>
-                  <div className="flex min-w-60 flex-1 flex-col gap-1.5">
-                    {["5", "4", "3", "2", "1"].map((star) => {
-                      const n = b.ratingDistribution[star] ?? 0;
-                      return (
-                        <div key={star} className="flex items-center gap-2.5 text-sm">
-                          <span className="w-7">{bn(star)}★</span>
-                          <span className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100"><span className="block h-full rounded-full bg-warning" style={{ width: `${(n / totalReviews) * 100}%` }} /></span>
-                          <span className="w-9 text-right text-subtle">{bn(n)}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                <ul className="flex flex-col gap-4">
-                  {b.latestReviews.map((r) => (
-                    <li key={r.id} className="flex flex-col gap-2 border-t border-zinc-100 pt-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={r.customerName} tone="violet" className="size-10 rounded-full" />
-                        <div className="flex-1"><div className="font-semibold">{r.customerName}</div><div className="text-sm text-subtle">{r.serviceName} · {dateShort(r.createdAt)}</div></div>
-                        <Stars value={r.rating} />
-                      </div>
-                      {r.comment && <p className="text-zinc-700">{r.comment}</p>}
-                      <span className="text-[13px] font-medium text-teal-700">✓ সম্পন্ন বুকিংয়ের রিভিউ</span>
-                      {r.replyBody && <div className="rounded-md bg-bg px-4 py-3 text-[15px]"><span className="font-semibold">ব্যবসার উত্তর: </span>{r.replyBody}</div>}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </section>
-
-          <section className="card p-6" aria-labelledby="about">
-            <h2 id="about" className="mb-3 text-base font-semibold">পরিচিতি</h2>
-            {(b.description || b.shortDescription) && <p className="mb-5 whitespace-pre-line text-zinc-700">{b.description || b.shortDescription}</p>}
-            <dl className="grid gap-4 text-[15px] sm:grid-cols-2">
-              {b.addressLine && <div><dt className="text-subtle">ঠিকানা</dt><dd className="font-semibold">{b.addressLine}{b.zoneName && `, ${b.zoneName}`}</dd></div>}
-              {b.coverageNote && <div><dt className="text-subtle">সেবা এলাকা</dt><dd className="font-semibold">{b.coverageNote}</dd></div>}
-              {b.cancellationPolicy && <div><dt className="text-subtle">বাতিলের নীতি</dt><dd className="font-semibold">{b.cancellationPolicy}</dd></div>}
-            </dl>
-            <h3 className="mt-6 mb-2 font-semibold">কাজের সময়</h3>
-            <ul className="grid gap-1 text-[15px] sm:grid-cols-2">
-              {DAY_NAMES.map((name, d) => {
-                const hrs = b.hours.filter((h) => h.dayOfWeek === d);
-                return (
-                  <li key={name} className={`flex justify-between gap-4 rounded px-2 py-1 ${d === today ? "bg-zinc-100 font-semibold" : ""}`}>
-                    <span>{name}</span><span>{hrs.length ? hrs.map((h) => `${clock(h.opensAt)}–${clock(h.closesAt)}`).join(", ") : "বন্ধ"}</span>
-                  </li>
-                );
-              })}
-            </ul>
-            <button onClick={() => requireLogin(() => setReportOpen(true))} className="mt-6 flex min-h-11 items-center gap-2 font-medium text-red-700 hover:underline">
-              <Flag className="size-4" aria-hidden />ব্যবসাটি রিপোর্ট করুন
-            </button>
-          </section>
+          {b.sections.map((key) => <div key={key} className="contents">{sectionView[key]}</div>)}
         </div>
 
         <aside className="hidden w-full max-w-sm shrink-0 lg:sticky lg:top-24 lg:block">
@@ -206,26 +150,32 @@ export default function BusinessProfile() {
         <LinkButton to={bookUrl(firstService?.id)} size="lg" className="w-full">অ্যাপয়েন্টমেন্ট বুক করুন</LinkButton>
       </div>
 
-      <ReportModal open={reportOpen} onClose={() => setReportOpen(false)} businessId={b.id} />
+      <ReportModal key={report?.contentId ?? "business"} target={report} onClose={() => setReport(null)} businessId={b.id} />
       {b.services.length === 0 && <div className="mt-6"><EmptyState title="এখনও কোনো সেবা যোগ করা হয়নি।" /></div>}
       <p className="mt-8 text-center text-sm text-subtle"><Link to="/search" className="hover:text-primary">← আরও ব্যবসা খুঁজুন</Link></p>
     </div>
   );
 }
 
-function ReportModal({ open, onClose, businessId }: { open: boolean; onClose: () => void; businessId: string }) {
-  const [reason, setReason] = useState("misleading_information");
+type ReportTarget = { contentType?: "notice" | "gallery_item"; contentId?: string; label?: string };
+
+function ReportModal({ target, onClose, businessId }: { target: ReportTarget | null; onClose: () => void; businessId: string }) {
+  const [reason, setReason] = useState(target?.contentType ? "inappropriate_content" : "misleading_information");
   const [description, setDescription] = useState("");
   const toast = useToast();
   const m = useMutation({
-    mutationFn: () => api.post("/api/reports", { targetType: "business", targetBusinessId: businessId, reason, description }),
+    mutationFn: () => api.post("/api/reports", {
+      targetType: "business", targetBusinessId: businessId, reason, description,
+      contentType: target?.contentType, contentId: target?.contentId,
+    }),
     onSuccess: () => { toast("রিপোর্ট জমা হয়েছে। মডারেটর পর্যালোচনা করবেন।"); onClose(); setDescription(""); },
   });
   return (
-    <Modal open={open} onClose={onClose} title="ব্যবসাটি রিপোর্ট করুন"
+    <Modal open={!!target} onClose={onClose} title={target?.contentType ? "রিপোর্ট করুন" : "ব্যবসাটি রিপোর্ট করুন"}
       footer={<><Button variant="ghost" onClick={onClose}>বাতিল</Button><Button variant="danger" loading={m.isPending} onClick={() => m.mutate()}>রিপোর্ট জমা দিন</Button></>}>
       <div className="flex flex-col gap-4">
         <ErrorBox error={m.error} />
+        {target?.label && <p className="rounded-md bg-bg px-3 py-2 text-[15px]">{target.label}</p>}
         <label className="label">কারণ
           <select className="input" value={reason} onChange={(e) => setReason(e.target.value)}>
             {Object.entries(REPORT_REASONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -236,5 +186,268 @@ function ReportModal({ open, onClose, businessId }: { open: boolean; onClose: ()
         </label>
       </div>
     </Modal>
+  );
+}
+
+// ---------- page sections (order and visibility come from the owner's layout) ----------
+
+function SectionCard({ id, title, icon, children }: { id: string; title: string; icon?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="card p-6" aria-labelledby={id}>
+      <h2 id={id} className="mb-4 flex items-center gap-2 text-base font-semibold">{icon}{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function NoticeBoard({ notices, onReport }: { notices: PublicBusiness["notices"]; onReport: (n: PublicBusiness["notices"][number]) => void }) {
+  const [all, setAll] = useState(false);
+  if (notices.length === 0) return null;
+  const shown = all ? notices : notices.slice(0, 3);
+  return (
+    <SectionCard id="notices" title="নোটিশ বোর্ড" icon={<Megaphone className="size-5 text-primary" aria-hidden />}>
+      <ul className="flex flex-col gap-3">
+        {shown.map((n) => (
+          <li key={n.id} className={`rounded-md border p-4 ${n.isPinned ? "border-primary/30 bg-primary-light" : "border-line"}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              {n.isPinned && <Pin className="size-4 text-primary" aria-label="পিন করা নোটিশ" />}
+              <h3 className="font-semibold">{n.title}</h3>
+              <span className="ml-auto text-sm text-subtle">{dateShort(n.createdAt)}</span>
+            </div>
+            <p className="mt-1 whitespace-pre-line text-[15px] text-zinc-700">{n.body}</p>
+            <div className="mt-2 flex items-center gap-3 text-sm text-subtle">
+              {n.expiresAt && <span>{dateShort(n.expiresAt)} পর্যন্ত</span>}
+              <button onClick={() => onReport(n)} className="ml-auto inline-flex min-h-9 items-center gap-1 hover:text-red-700 hover:underline">
+                <Flag className="size-3.5" aria-hidden />রিপোর্ট
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {notices.length > 3 && (
+        <button onClick={() => setAll(!all)} className="mt-3 min-h-11 font-medium text-primary hover:underline">
+          {all ? "কম দেখুন" : `সব নোটিশ দেখুন (${bn(notices.length)})`}
+        </button>
+      )}
+    </SectionCard>
+  );
+}
+
+function HighlightsSection({ items }: { items: PublicBusiness["highlights"] }) {
+  if (items.length === 0) return null;
+  return (
+    <SectionCard id="highlights" title="কেন আমাদের বেছে নেবেন">
+      <ul className="grid gap-4 sm:grid-cols-2">
+        {items.map((h, i) => {
+          const Icon = HIGHLIGHT_ICONS[h.iconKey]?.icon ?? BadgeCheck;
+          return (
+            <li key={h.id ?? i} className="flex gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary-light text-primary"><Icon className="size-5" aria-hidden /></span>
+              <div><div className="font-semibold">{h.title}</div>{h.description && <p className="text-[15px] text-muted">{h.description}</p>}</div>
+            </li>
+          );
+        })}
+      </ul>
+    </SectionCard>
+  );
+}
+
+function ServicesSection({ b, bookUrl }: { b: PublicBusiness; bookUrl: (serviceId?: string) => string }) {
+  return (
+    <SectionCard id="services" title="সেবাসমূহ">
+      {b.services.length === 0 ? <p className="text-muted">এখনও কোনো সেবা যোগ করা হয়নি।</p> : (
+        <ul className="flex flex-col gap-3">
+          {b.services.map((s) => (
+            <li key={s.id} className="flex flex-wrap items-center gap-4 rounded-md border border-line p-4">
+              {s.imageUrl && <img src={s.imageUrl} alt="" className="size-16 shrink-0 rounded-md object-cover" />}
+              <div className="min-w-0 flex-[1_1_240px]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{s.name}</span>
+                  {s.isFeatured && <Badge tone="amber" className="text-xs">ফিচার্ড</Badge>}
+                  {s.availability !== "available" && <Badge className="text-xs">এখন পাওয়া যাচ্ছে না</Badge>}
+                </div>
+                {s.shortDescription && <p className="text-[15px] text-muted">{s.shortDescription}</p>}
+                <p className="text-sm text-subtle"><Clock className="mr-1 inline size-4" aria-hidden />{duration(s.durationMinutes)}{s.avgRating > 0 && <> · ★ {bn(s.avgRating)}</>}</p>
+              </div>
+              <div className="min-w-24 text-lg font-semibold">{priceLabel(s.priceType, s.price, s.priceMax)}</div>
+              <LinkButton to={bookUrl(s.id)} size="sm" className={s.availability !== "available" ? "pointer-events-none opacity-50" : ""} aria-disabled={s.availability !== "available"}>বুক করুন</LinkButton>
+            </li>
+          ))}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
+function GallerySection({ items, name, onReport }: { items: GalleryItem[]; name: string; onReport: (g: GalleryItem) => void }) {
+  const [open, setOpen] = useState<number | null>(null);
+  const [all, setAll] = useState(false);
+  if (items.length === 0) return null;
+  const shown = all ? items : items.slice(0, 6);
+  return (
+    <SectionCard id="gallery" title="গ্যালারি">
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {shown.map((g, i) => (
+          <li key={g.id ?? g.imageUrl}>
+            <button onClick={() => setOpen(i)} className="group block w-full overflow-hidden rounded-md" aria-label={g.caption ? `ছবি: ${g.caption}` : `ছবি ${bn(i + 1)} বড় করে দেখুন`}>
+              <img src={g.imageUrl} alt={g.caption ?? `${name}-এর কাজের ছবি`} loading="lazy" className="aspect-square w-full object-cover transition duration-200 group-hover:scale-[1.03]" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {items.length > 6 && (
+        <button onClick={() => setAll(!all)} className="mt-3 min-h-11 font-medium text-primary hover:underline">
+          {all ? "কম দেখুন" : `সব ছবি দেখুন (${bn(items.length)})`}
+        </button>
+      )}
+      {open !== null && <Lightbox items={items} index={open} onIndex={setOpen} onClose={() => setOpen(null)}
+        onReport={(g) => { setOpen(null); onReport(g); }} />}
+    </SectionCard>
+  );
+}
+
+function Lightbox({ items, index, onIndex, onClose, onReport }: {
+  items: GalleryItem[]; index: number; onIndex: (i: number) => void; onClose: () => void; onReport: (g: GalleryItem) => void;
+}) {
+  const go = (by: number) => onIndex((index + by + items.length) % items.length);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") go(1);
+      if (e.key === "ArrowLeft") go(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = overflow; };
+  });
+  const g = items[index];
+  return (
+    <div role="dialog" aria-modal="true" aria-label="ছবি" className="fixed inset-0 z-50 flex flex-col bg-zinc-950/90 p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="flex items-center justify-between text-white">
+        <span className="text-sm">{bn(index + 1)} / {bn(items.length)}</span>
+        <button onClick={onClose} className="flex size-11 items-center justify-center rounded-md hover:bg-white/10" aria-label="বন্ধ করুন"><X className="size-6" aria-hidden /></button>
+      </div>
+      <div className="flex min-h-0 flex-1 items-center justify-center gap-2" onClick={(e) => e.target === e.currentTarget && onClose()}>
+        {items.length > 1 && <button onClick={() => go(-1)} className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="আগের ছবি"><ChevronLeft className="size-6" aria-hidden /></button>}
+        <img src={g.imageUrl} alt={g.caption ?? ""} className="max-h-full min-w-0 max-w-full rounded-md object-contain" />
+        {items.length > 1 && <button onClick={() => go(1)} className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="পরের ছবি"><ChevronRight className="size-6" aria-hidden /></button>}
+      </div>
+      <div className="flex items-center justify-center gap-4 pt-3 text-white">
+        {g.caption && <p>{g.caption}</p>}
+        <button onClick={() => onReport(g)} className="inline-flex min-h-9 items-center gap-1 text-sm text-white/70 hover:text-white hover:underline">
+          <Flag className="size-3.5" aria-hidden />ছবিটি রিপোর্ট করুন
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ReviewsSection({ b, totalReviews }: { b: PublicBusiness; totalReviews: number }) {
+  return (
+    <section className="card p-6" aria-labelledby="reviews">
+      <h2 id="reviews" className="mb-5 text-base font-semibold">গ্রাহক রিভিউ</h2>
+      {totalReviews === 0 ? <p className="text-muted">এখনও কোনো রিভিউ নেই। শুধুমাত্র সম্পন্ন বুকিংয়ের গ্রাহকরাই রিভিউ দিতে পারেন।</p> : (
+        <>
+          <div className="mb-6 flex flex-wrap items-center gap-8">
+            <div className="text-center">
+              <div className="font-num text-4xl font-semibold leading-none">{bn(b.avgRating)}</div>
+              <div className="text-lg tracking-widest text-amber-600" aria-hidden>{"★".repeat(Math.round(b.avgRating))}</div>
+              <div className="text-sm text-subtle">{bn(b.reviewCount)} রিভিউ</div>
+            </div>
+            <div className="flex min-w-60 flex-1 flex-col gap-1.5">
+              {["5", "4", "3", "2", "1"].map((star) => {
+                const n = b.ratingDistribution[star] ?? 0;
+                return (
+                  <div key={star} className="flex items-center gap-2.5 text-sm">
+                    <span className="w-7">{bn(star)}★</span>
+                    <span className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100"><span className="block h-full rounded-full bg-warning" style={{ width: `${(n / totalReviews) * 100}%` }} /></span>
+                    <span className="w-9 text-right text-subtle">{bn(n)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <ul className="flex flex-col gap-4">
+            {b.latestReviews.map((r) => (
+              <li key={r.id} className="flex flex-col gap-2 border-t border-zinc-100 pt-4">
+                <div className="flex items-center gap-3">
+                  <Avatar name={r.customerName} tone="violet" className="size-10 rounded-full" />
+                  <div className="flex-1"><div className="font-semibold">{r.customerName}</div><div className="text-sm text-subtle">{r.serviceName} · {dateShort(r.createdAt)}</div></div>
+                  <Stars value={r.rating} />
+                </div>
+                {r.comment && <p className="text-zinc-700">{r.comment}</p>}
+                {r.photos.length > 0 && <ReviewPhotos photos={r.photos} />}
+                <span className="text-[13px] font-medium text-teal-700">✓ সম্পন্ন বুকিংয়ের রিভিউ</span>
+                {r.replyBody && <div className="rounded-md bg-bg px-4 py-3 text-[15px]"><span className="font-semibold">ব্যবসার উত্তর: </span>{r.replyBody}</div>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
+function FaqSection({ items }: { items: PublicBusiness["faqs"] }) {
+  if (items.length === 0) return null;
+  return (
+    <SectionCard id="faqs" title="সাধারণ প্রশ্নোত্তর">
+      <div className="flex flex-col divide-y divide-zinc-100 rounded-md border border-line">
+        {items.map((f, i) => (
+          <details key={f.id ?? i} className="group">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 py-2 font-medium [&::-webkit-details-marker]:hidden">
+              <span className="flex-1">{f.question}</span>
+              <ChevronRight className="size-4 shrink-0 text-subtle transition group-open:rotate-90" aria-hidden />
+            </summary>
+            <p className="whitespace-pre-line px-4 pb-4 text-[15px] text-zinc-700">{f.answer}</p>
+          </details>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
+function TeamSection({ members }: { members: PublicBusiness["team"] }) {
+  if (members.length === 0) return null;
+  return (
+    <SectionCard id="team" title="আমাদের টিম">
+      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        {members.map((m, i) => (
+          <li key={i} className="flex flex-col items-center gap-2 text-center">
+            {m.avatarUrl ? <img src={m.avatarUrl} alt="" className="size-16 rounded-full object-cover" /> : <Avatar name={m.name} className="size-16 rounded-full text-lg" />}
+            <div><div className="font-semibold">{m.name}</div>{m.title && <div className="text-sm text-muted">{m.title}</div>}</div>
+          </li>
+        ))}
+      </ul>
+    </SectionCard>
+  );
+}
+
+function AboutSection({ b, today, onReport }: { b: PublicBusiness; today: number; onReport: () => void }) {
+  return (
+    <section className="card p-6" aria-labelledby="about">
+      <h2 id="about" className="mb-3 text-base font-semibold">পরিচিতি</h2>
+      {(b.description || b.shortDescription) && <p className="mb-5 whitespace-pre-line text-zinc-700">{b.description || b.shortDescription}</p>}
+      <dl className="grid gap-4 text-[15px] sm:grid-cols-2">
+        {b.addressLine && <div><dt className="text-subtle">ঠিকানা</dt><dd className="font-semibold">{b.addressLine}{b.zoneName && `, ${b.zoneName}`}</dd></div>}
+        {b.coverageNote && <div><dt className="text-subtle">সেবা এলাকা</dt><dd className="font-semibold">{b.coverageNote}</dd></div>}
+        {b.cancellationPolicy && <div><dt className="text-subtle">বাতিলের নীতি</dt><dd className="font-semibold">{b.cancellationPolicy}</dd></div>}
+      </dl>
+      <h3 className="mt-6 mb-2 font-semibold">কাজের সময়</h3>
+      <ul className="grid gap-1 text-[15px] sm:grid-cols-2">
+        {DAY_NAMES.map((name, d) => {
+          const hrs = b.hours.filter((h) => h.dayOfWeek === d);
+          return (
+            <li key={name} className={`flex justify-between gap-4 rounded px-2 py-1 ${d === today ? "bg-zinc-100 font-semibold" : ""}`}>
+              <span>{name}</span><span>{hrs.length ? hrs.map((h) => `${clock(h.opensAt)}–${clock(h.closesAt)}`).join(", ") : "বন্ধ"}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <button onClick={onReport} className="mt-6 flex min-h-11 items-center gap-2 font-medium text-red-700 hover:underline">
+        <Flag className="size-4" aria-hidden />ব্যবসাটি রিপোর্ট করুন
+      </button>
+    </section>
   );
 }
