@@ -8,11 +8,13 @@ namespace ServiceHub.Api.Features.Page;
 /// Deletes uploaded images that nothing uses any more. Call it after SaveChanges with the URLs that were just
 /// replaced or removed; a file is kept while the logo, the cover, any service (deleted ones included, for history)
 /// or the gallery still points at it. Links to other sites and other businesses' files are never touched.
+/// During a staff edit nothing is deleted: the edit can be undone, and the undo points back at the old files.
 /// </summary>
-public class UploadCleanup(AppDbContext db, IFileStorage storage)
+public class UploadCleanup(AppDbContext db, IFileStorage storage, Staff.StaffEdit staffEdit)
 {
     public async Task DeleteIfUnusedAsync(Guid businessId, params string?[] urls)
     {
+        if (staffEdit.KeepFiles) return;
         var candidates = urls.OfType<string>().Distinct().Where(u => storage.Owns(u, PageController.Folder(businessId))).ToList();
         if (candidates.Count == 0) return;
 
