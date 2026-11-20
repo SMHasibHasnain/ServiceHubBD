@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useState } from "react";
+import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Lock, Plus, Trash2 } from "lucide-react";
 import { api } from "../../api/client";
@@ -10,23 +10,39 @@ import { DOCUMENT_TYPES, VERIFICATION_STATUS, bn, dateShort } from "../../lib/fo
 import { useBiz } from "./Dashboard";
 import { HoursEditor, hoursFromWeek, weekFromHours } from "./HoursEditor";
 import { useBusinessPlan } from "../../lib/billing";
+import { ImageField } from "../../components/ImageUpload";
+import { SectionTabs } from "../../components/SectionTabs";
 
-export default function Settings() {
+/** Settings section: one sub-page per job, under tabs. Each tab is its own URL. */
+export default function SettingsLayout() {
   const biz = useBiz();
   if (!biz) return <Skeleton className="h-96" />;
   return (
     <>
       <PageHeader title="ব্যবসার সেটিংস" subtitle="এখানে পরিবর্তন করলে পাবলিক পেজে দেখা যাবে" />
-      <div className="flex flex-col gap-6">
-        <ProfileSection key={`p-${biz.id}`} />
-        <HoursSection key={`h-${biz.id}`} />
-        <BookingSettingsSection key={`b-${biz.id}`} />
-        <VerificationSection key={`v-${biz.id}`} />
-        {biz.myPermissions.includes("business.delete") && <DangerSection />}
-      </div>
+      <SectionTabs label="সেটিংসের অংশ" permissions={biz.myPermissions} items={[
+        { to: "profile", label: "তথ্য ও ছবি" },
+        { to: "hours", label: "কাজের সময়" },
+        { to: "booking", label: "বুকিংয়ের নিয়ম" },
+        { to: "verification", label: "যাচাইকরণ" },
+        { to: "account", label: "অ্যাকাউন্ট", permission: "business.delete" },
+      ]} />
+      <Outlet context={biz} />
     </>
   );
 }
+
+/** `/settings` and the old `/settings#verification` link land on the right tab. */
+export function SettingsIndex() {
+  const { hash } = useLocation();
+  return <Navigate to={hash === "#verification" ? "verification" : "profile"} replace />;
+}
+
+export const SettingsProfile = () => <ProfileSection key={useBiz()?.id} />;
+export const SettingsHours = () => <HoursSection key={useBiz()?.id} />;
+export const SettingsBooking = () => <BookingSettingsSection key={useBiz()?.id} />;
+export const SettingsVerification = () => <VerificationSection key={useBiz()?.id} />;
+export const SettingsAccount = () => <DangerSection />;
 
 function useSaved(message = "তথ্য সংরক্ষিত হয়েছে।") {
   const qc = useQueryClient();
@@ -83,11 +99,13 @@ function ProfileSection() {
         {input("coverageNote", "সেবা এলাকা", { placeholder: "যেমন: উত্তরা, তুরাগ, খিলক্ষেত" })}
         {input("phone", "মোবাইল (গোপন)", { type: "tel" })}
         {input("email", "ইমেইল", { type: "email" })}
-        {input("websiteUrl", "ওয়েবসাইট", { type: "url" })}
-        {input("facebookUrl", "ফেসবুক পেজ", { type: "url" })}
-        {input("logoUrl", "লোগোর ছবির লিংক", { type: "url", placeholder: "https://..." })}
-        {input("coverUrl", "কভার ছবির লিংক", { type: "url", placeholder: "https://..." })}
+        {input("websiteUrl", "ওয়েবসাইট (গোপন)", { type: "url" })}
+        {input("facebookUrl", "ফেসবুক পেজ (গোপন)", { type: "url" })}
         {input("establishedYear", "প্রতিষ্ঠার বছর", { type: "number", min: 1950, max: 2100 })}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ImageField businessId={biz.id} label="লোগো" value={f.logoUrl || null} onChange={(url) => setF({ ...f, logoUrl: url ?? "" })} hint="বর্গাকার ছবি ভালো দেখায়" />
+        <ImageField businessId={biz.id} label="কভার ছবি" shape="wide" value={f.coverUrl || null} onChange={(url) => setF({ ...f, coverUrl: url ?? "" })} hint="চওড়া ছবি (যেমন ১৬০০×৬০০)" />
       </div>
       <div className="flex flex-col">
         {([["offersHomeService", "হোম সার্ভিস দিই"], ["offersEmergencyService", "জরুরি সেবা দিই"]] as const).map(([k, label]) => (
@@ -160,7 +178,6 @@ function VerificationSection() {
     mutationFn: () => api.post(`/api/businesses/${biz.id}/verification`, { documents: docs.filter((d) => d.fileUrl.trim()) }),
     onSuccess: () => { saved(); history.refetch(); },
   });
-  useEffect(() => { if (window.location.hash === "#verification") document.getElementById("verification")?.scrollIntoView({ behavior: "smooth" }); }, []);
   const latest = history.data?.[0];
 
   return (
