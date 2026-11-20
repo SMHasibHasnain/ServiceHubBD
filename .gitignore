@@ -7,6 +7,8 @@
 .env
 PROJECT_CONTEXT.md
 docs/
+# uploaded images (local disk storage)
+App_Data/
 
 # User-specific files
 *.rsuser
