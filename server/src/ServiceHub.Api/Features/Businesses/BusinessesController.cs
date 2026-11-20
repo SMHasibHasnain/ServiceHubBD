@@ -76,7 +76,8 @@ public record BusinessDto(
     string? WebsiteUrl, string? FacebookUrl, string? AddressLine, int? ZoneId, string? ZoneName, decimal? Latitude,
     decimal? Longitude, string? CoverageNote, List<string> Languages, bool OffersHomeService, bool OffersEmergencyService,
     BusinessStatus Status, VerificationStatus VerificationStatus, short OnboardingStep, decimal AvgRating, int ReviewCount,
-    int CompletedBookingCount, List<HourDto> Hours, BookingSettingsDto BookingSettings, string MyRole, string[] MyPermissions);
+    int CompletedBookingCount, List<HourDto> Hours, BookingSettingsDto BookingSettings, string MyRole, string[] MyPermissions,
+    string? StaffRole = null);
 
 [ApiController]
 [Authorize]
@@ -127,14 +128,14 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<BusinessDto>> Get(Guid id)
     {
-        await access.RequireBusinessAsync(id, P.BusinessView);
+        await access.RequireBusinessOrStaffAsync(id, P.BusinessView);
         return await LoadDtoAsync(id);
     }
 
     [HttpPatch("{id:guid}")]
     public async Task<ActionResult<BusinessDto>> Update(Guid id, UpdateBusinessRequest req)
     {
-        var member = await access.RequireBusinessAsync(id, P.BusinessUpdate);
+        var member = await access.RequireBusinessOrStaffAsync(id, P.BusinessUpdate);
         var b = await db.Businesses.FirstAsync(x => x.Id == id);
         var (oldLogo, oldCover) = (b.LogoUrl, b.CoverUrl);
         ImageUrls.Ensure(req.LogoUrl);
@@ -160,7 +161,7 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
         if (req.OffersHomeService is not null) b.OffersHomeService = req.OffersHomeService.Value;
         if (req.OffersEmergencyService is not null) b.OffersEmergencyService = req.OffersEmergencyService.Value;
         if (req.OnboardingStep is not null) b.OnboardingStep = req.OnboardingStep.Value;
-        audit.Log("business.update", "business", id, businessId: id, scope: RoleScope.Business, roleId: member.RoleId);
+        audit.Log("business.update", "business", id, businessId: id, scope: member.Scope, roleId: member.RoleId);
         await db.SaveChangesAsync();
         await cleanup.DeleteIfUnusedAsync(id, oldLogo, oldCover);
         return await LoadDtoAsync(id);
@@ -170,7 +171,7 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
     [HttpPut("{id:guid}/hours")]
     public async Task<ActionResult<List<HourDto>>> SetHours(Guid id, List<HourDto> hours)
     {
-        await access.RequireBusinessAsync(id, P.BusinessUpdate);
+        await access.RequireBusinessOrStaffAsync(id, P.BusinessUpdate);
         foreach (var day in hours.GroupBy(h => h.DayOfWeek))
         {
             var ordered = day.OrderBy(h => h.OpensAt).ToList();
@@ -182,18 +183,19 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
                     throw new BadRequestException("একই দিনের সময়গুলো একটির সাথে আরেকটি মিলে যাচ্ছে।", "overlapping_hours");
             }
         }
-        await using var tx = await db.Database.BeginTransactionAsync();
+        // A staff edit already runs in its own transaction (see StaffEdit); join it instead of opening a second one.
+        await using var tx = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync() : null;
         await db.BusinessHours.Where(h => h.BusinessId == id).ExecuteDeleteAsync();
         db.BusinessHours.AddRange(hours.Select(h => new BusinessHour { BusinessId = id, DayOfWeek = h.DayOfWeek, OpensAt = h.OpensAt, ClosesAt = h.ClosesAt }));
         await db.SaveChangesAsync();
-        await tx.CommitAsync();
+        if (tx is not null) await tx.CommitAsync();
         return hours.OrderBy(h => h.DayOfWeek).ThenBy(h => h.OpensAt).ToList();
     }
 
     [HttpPut("{id:guid}/booking-settings")]
     public async Task<ActionResult<BookingSettingsDto>> SetBookingSettings(Guid id, BookingSettingsDto req)
     {
-        await access.RequireBusinessAsync(id, P.BusinessUpdate);
+        await access.RequireBusinessOrStaffAsync(id, P.BusinessUpdate);
         if (req.AutoConfirm) await plans.RequireFeatureAsync(id, E.AutoConfirm);
         var s = await db.BusinessBookingSettings.FirstAsync(x => x.BusinessId == id);
         s.AutoConfirm = req.AutoConfirm;
@@ -211,7 +213,7 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
     [HttpGet("{id:guid}/closures")]
     public async Task<ActionResult<List<ClosureDto>>> Closures(Guid id)
     {
-        await access.RequireBusinessAsync(id, P.BusinessView);
+        await access.RequireBusinessOrStaffAsync(id, P.BusinessView);
         return await db.BusinessClosures.Where(c => c.BusinessId == id && c.ClosedOn >= BdTime.Today())
             .OrderBy(c => c.ClosedOn)
             .Select(c => new ClosureDto(c.Id, c.ClosedOn, c.StartTime, c.EndTime, c.Reason)).ToListAsync();
@@ -220,7 +222,7 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
     [HttpPost("{id:guid}/closures")]
     public async Task<ActionResult<ClosureDto>> AddClosure(Guid id, ClosureRequest req)
     {
-        await access.RequireBusinessAsync(id, P.BusinessUpdate);
+        await access.RequireBusinessOrStaffAsync(id, P.BusinessUpdate);
         if ((req.StartTime is null) != (req.EndTime is null) || (req.StartTime is not null && req.EndTime <= req.StartTime))
             throw new BadRequestException("পুরো দিন অথবা সঠিক শুরু ও শেষ সময় দিন।", "invalid_closure");
         var c = new BusinessClosure { BusinessId = id, ClosedOn = req.ClosedOn, StartTime = req.StartTime, EndTime = req.EndTime, Reason = req.Reason };
@@ -232,7 +234,7 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
     [HttpDelete("{id:guid}/closures/{closureId:guid}")]
     public async Task<IActionResult> DeleteClosure(Guid id, Guid closureId)
     {
-        await access.RequireBusinessAsync(id, P.BusinessUpdate);
+        await access.RequireBusinessOrStaffAsync(id, P.BusinessUpdate);
         await db.BusinessClosures.Where(c => c.Id == closureId && c.BusinessId == id).ExecuteDeleteAsync();
         return NoContent();
     }
@@ -293,7 +295,7 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
     [HttpGet("{id:guid}/verification")]
     public async Task<ActionResult<List<VerificationSummaryDto>>> VerificationHistory(Guid id)
     {
-        await access.RequireBusinessAsync(id, P.BusinessView);
+        await access.RequireBusinessOrStaffAsync(id, P.BusinessView);
         var list = await db.VerificationRequests.Include(v => v.Documents).Where(v => v.BusinessId == id)
             .OrderByDescending(v => v.AttemptNo).ToListAsync();
         return list.Select(ToSummary).ToList();
@@ -303,7 +305,7 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var member = await access.RequireBusinessAsync(id, P.BusinessDelete);
+        var member = await access.RequireBusinessOrStaffAsync(id, P.BusinessDelete);
         var hasUpcoming = await db.Bookings.AnyAsync(x => x.BusinessId == id && x.StartAt > DateTime.UtcNow &&
             (x.Status == BookingStatus.Pending || x.Status == BookingStatus.Confirmed));
         if (hasUpcoming)
@@ -314,7 +316,7 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
         await db.Users.Where(u => u.LastActiveBusinessId == id)
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.LastActiveBusinessId, (Guid?)null)
                 .SetProperty(u => u.LastWorkspaceType, WorkspaceType.Customer));
-        audit.Log("business.delete", "business", id, businessId: id, scope: RoleScope.Business, roleId: member.RoleId);
+        audit.Log("business.delete", "business", id, businessId: id, scope: member.Scope, roleId: member.RoleId);
         await db.SaveChangesAsync();
         return NoContent();
     }
@@ -330,9 +332,12 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
         var b = await db.Businesses.AsNoTracking()
             .Include(x => x.Category).Include(x => x.Zone).Include(x => x.Hours).Include(x => x.BookingSettings)
             .FirstAsync(x => x.Id == id);
-        var myRole = await db.BusinessMembers.Where(m => m.BusinessId == id && m.UserId == userId)
-            .Select(m => m.Role.Key).FirstAsync();
-        var perms = await access.GetBusinessPermissionsAsync(id, userId);
+        var myRole = await db.BusinessMembers.Where(m => m.BusinessId == id && m.UserId == userId && m.Status != MemberStatus.Removed)
+            .Select(m => m.Role.Key).FirstOrDefaultAsync();
+        // Platform staff opening a business they're not a member of: their granted permissions and role name.
+        string? staffRole = null;
+        var perms = myRole is not null ? await access.GetBusinessPermissionsAsync(id, userId) : await access.StaffPermissionsAsync(id);
+        if (myRole is null) staffRole = (await access.StaffRoleAsync(id, P.BusinessView))?.NameBn;
         var s = b.BookingSettings!;
         return new BusinessDto(b.Id, b.Name, b.Slug, b.CategoryId, b.Category.NameBn, b.Tagline, b.ShortDescription,
             b.Description, b.EstablishedYear, b.LogoUrl, b.CoverUrl, b.Phone, b.Email, b.WebsiteUrl, b.FacebookUrl,
@@ -342,7 +347,7 @@ public class BusinessesController(AppDbContext db, ICurrentUser me, AccessServic
             b.Hours.OrderBy(h => h.DayOfWeek).ThenBy(h => h.OpensAt).Select(h => new HourDto(h.DayOfWeek, h.OpensAt, h.ClosesAt)).ToList(),
             new BookingSettingsDto(s.AutoConfirm, s.SlotIntervalMinutes, s.MinNoticeMinutes, s.MaxAdvanceDays,
                 s.BufferMinutes, s.MaxConcurrentBookings, s.CancellationPolicy),
-            myRole, perms);
+            myRole ?? "", perms, staffRole);
     }
 
     private async Task<short> RoleIdAsync(string key) =>
