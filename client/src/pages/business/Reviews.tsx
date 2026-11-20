@@ -6,6 +6,7 @@ import type { ManagedReview, Paged } from "../../api/types";
 import { Avatar, Button, EmptyState, ErrorBox, LoadingList, Modal, PageHeader, Segmented, Stars, useToast } from "../../components/ui";
 import { REPORT_REASONS, bn, dateShort } from "../../lib/format";
 import { useBiz } from "./Dashboard";
+import { ReviewPhotos } from "../../components/shared";
 
 export default function Reviews() {
   const biz = useBiz();
@@ -41,6 +42,7 @@ export default function Reviews() {
                 <Stars value={r.rating} />
               </div>
               {r.comment && <p className="text-zinc-700">{r.comment}</p>}
+              {r.photos.length > 0 && <ReviewPhotos photos={r.photos} />}
               {r.reply ? (
                 <div className="rounded-md bg-bg px-4 py-3 text-[15px]"><span className="font-semibold">আপনার উত্তর: </span>{r.reply}</div>
               ) : canReply && (
