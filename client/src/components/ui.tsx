@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { Link, useParams, type LinkProps } from "react-router";
 import { ApiError } from "../api/client";
-import { AlertCircle, CheckCircle2, Loader2, Lock, X } from "lucide-react";
-import type { Tone } from "../lib/format";
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Lock, X } from "lucide-react";
+import { bn, type Tone } from "../lib/format";
 import { EmptyArt } from "./brand";
 
 // ---------- Button ----------
@@ -10,8 +10,8 @@ type Variant = "primary" | "secondary" | "outline" | "ghost" | "danger";
 type Size = "md" | "sm" | "lg";
 
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-primary text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_1px_2px_rgb(13_49_105/0.25)] hover:bg-primary-hover active:translate-y-px disabled:bg-zinc-200 disabled:text-zinc-500 disabled:shadow-none",
-  secondary: "bg-secondary-light text-brand-green hover:bg-lime-100",
+  primary: "bg-primary text-white hover:bg-primary-hover disabled:bg-zinc-200 disabled:text-zinc-500",
+  secondary: "bg-secondary-light text-brand-green hover:bg-secondary/15",
   outline: "border border-zinc-300 bg-surface text-ink shadow-soft hover:border-zinc-400 hover:bg-zinc-50",
   ghost: "text-zinc-600 hover:bg-zinc-100 hover:text-ink",
   danger: "border border-zinc-300 bg-surface text-red-700 shadow-soft hover:border-red-300 hover:bg-red-50 disabled:opacity-40 disabled:hover:border-zinc-300 disabled:hover:bg-surface",
@@ -23,7 +23,7 @@ const SIZE: Record<Size, string> = {
 };
 
 export const buttonClass = (variant: Variant = "primary", size: Size = "md", extra = "") =>
-  `inline-flex items-center justify-center gap-2 rounded-md font-semibold transition disabled:cursor-not-allowed ${VARIANT[variant]} ${SIZE[size]} ${extra}`;
+  `inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100 ${VARIANT[variant]} ${SIZE[size]} ${extra}`;
 
 export function Button({
   variant = "primary", size = "md", loading, className = "", children, disabled, ...rest
@@ -60,7 +60,7 @@ export function Field({ label, error, hint, optional, children }: {
 export function ErrorBox({ error }: { error: unknown }) {
   const { businessId } = useParams();
   if (!error) return null;
-  const message = error instanceof Error ? error.message : "দুঃখিত, একটি সমস্যা হয়েছে।";
+  const message = error instanceof Error ? error.message : "দুঃখিত, একটি সমস্যা হয়েছে";
   // Plan limits read as an upgrade prompt rather than a failure.
   if (error instanceof ApiError && error.code === "plan_limit_reached") {
     return (
@@ -107,14 +107,12 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   );
 }
 
-export function Stat({ label, value, note, icon, tone = "blue" }: { label: string; value: ReactNode; note?: ReactNode; icon?: ReactNode; tone?: Tone }) {
+/** A number card: label, figure, optional note. No icon tiles; the figure is the content. */
+export function Stat({ label, value, note }: { label: string; value: ReactNode; note?: ReactNode }) {
   return (
     <div className="card flex flex-col gap-2 p-4">
-      <div className="flex items-start justify-between gap-2 text-sm text-muted">
-        <span>{label}</span>
-        {icon && <span className={`flex size-8 shrink-0 items-center justify-center rounded-md ring-1 ring-inset [&>svg]:size-4 ${TONE[tone]}`}>{icon}</span>}
-      </div>
-      <span className="font-display text-[26px] leading-none font-semibold">{value}</span>
+      <span className="text-sm text-muted">{label}</span>
+      <span className="font-display text-[28px] leading-none font-semibold tabular-nums">{value}</span>
       {note && <span className="text-xs text-subtle">{note}</span>}
     </div>
   );
@@ -174,7 +172,7 @@ export function Modal({ open, onClose, title, children, footer, wide }: {
         <div className="flex max-h-[85vh] flex-col">
           <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-3">
             <h2 className="font-semibold">{title}</h2>
-            <button onClick={onClose} className="flex size-9 items-center justify-center rounded-md text-subtle hover:bg-zinc-100 hover:text-ink" aria-label="বন্ধ করুন">
+            <button onClick={onClose} className="flex size-9 items-center justify-center rounded-md text-subtle transition-colors duration-150 hover:bg-zinc-100 hover:text-ink" aria-label="বন্ধ করুন">
               <X className="size-4" aria-hidden />
             </button>
           </div>
@@ -226,11 +224,85 @@ export function Segmented<T extends string>({ value, onChange, options, label }:
           role="tab"
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
-          className={`min-h-9 shrink-0 whitespace-nowrap rounded-[8px] px-3.5 text-sm font-medium ${value === o.value ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}
+          className={`min-h-9 shrink-0 whitespace-nowrap rounded-[8px] px-3.5 text-sm font-medium transition-colors duration-150 ${value === o.value ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}
         >
           {o.label}
         </button>
       ))}
     </div>
   );
+}
+
+// ---------- Pagination ----------
+
+/** Default rows per page for every list. */
+export const PAGE_SIZE = 20;
+
+/** Page numbers to show: first, last, and the current one with its neighbours; gaps become "…". */
+function pageWindow(page: number, pages: number): (number | "gap")[] {
+  const wanted = new Set([1, pages, page - 1, page, page + 1].filter((p) => p >= 1 && p <= pages));
+  const sorted = [...wanted].sort((a, b) => a - b);
+  return sorted.flatMap((p, i) => (i > 0 && p - sorted[i - 1] > 1 ? ["gap" as const, p] : [p]));
+}
+
+/**
+ * Page controls under a list: "১–২০ / মোট ৮৫" and previous, numbered and next buttons. Renders nothing when everything
+ * fits on one page. If the current page falls off the end (the last row on it was deleted), it steps back.
+ */
+export function Pagination({ page, total, onChange, pageSize = PAGE_SIZE, label = "পাতা", className = "", scrollTop = true }: {
+  page: number; total: number; onChange: (page: number) => void; pageSize?: number; label?: string; className?: string;
+  /** Off inside modals and small panels, where jumping the window to the top would lose the reader's place. */
+  scrollTop?: boolean;
+}) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  useEffect(() => {
+    if (total > 0 && page > pages) onChange(pages);
+  }, [total, page, pages, onChange]);
+  if (total <= pageSize) return null;
+  const go = (p: number) => {
+    onChange(p);
+    if (!scrollTop) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  };
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(total, page * pageSize);
+  const step = "flex size-9 items-center justify-center rounded-md text-sm transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40";
+  return (
+    <nav aria-label={label} className={`mt-4 flex flex-wrap items-center justify-between gap-3 ${className}`}>
+      <span className="text-sm text-muted tabular-nums">{bn(from)}–{bn(to)} / মোট {bn(total)}</span>
+      <div className="flex items-center gap-1">
+        <button type="button" className={`${step} text-zinc-600 hover:bg-zinc-100 disabled:hover:bg-transparent`} disabled={page <= 1}
+          onClick={() => go(page - 1)} aria-label="আগের পাতা"><ChevronLeft className="size-4" aria-hidden /></button>
+        {pageWindow(page, pages).map((p, i) => p === "gap"
+          ? <span key={`gap-${i}`} className="w-6 text-center text-sm text-subtle" aria-hidden>…</span>
+          : (
+            <button key={p} type="button" onClick={() => go(p)} aria-current={p === page ? "page" : undefined} aria-label={`পাতা ${bn(p)}`}
+              className={`${step} min-w-9 px-2 tabular-nums ${p === page ? "bg-primary font-medium text-white" : "text-ink hover:bg-zinc-100"}`}>
+              {bn(p)}
+            </button>
+          ))}
+        <button type="button" className={`${step} text-zinc-600 hover:bg-zinc-100 disabled:hover:bg-transparent`} disabled={page >= pages}
+          onClick={() => go(page + 1)} aria-label="পরের পাতা"><ChevronRight className="size-4" aria-hidden /></button>
+      </div>
+    </nav>
+  );
+}
+
+/** Current page that returns to 1 whenever `resetKey` (the list's filters or search) changes. */
+export function usePage(resetKey: unknown = null) {
+  const key = JSON.stringify(resetKey);
+  const [state, setState] = useState({ key, page: 1 });
+  const page = state.key === key ? state.page : 1;
+  const setPage = useCallback((p: number) => setState({ key, page: p }), [key]);
+  return [page, setPage] as const;
+}
+
+/** Paging in the browser, for lists the API returns whole (team, services, categories…). */
+export function useClientPage<T>(items: T[] | undefined, resetKey: unknown = null, pageSize = PAGE_SIZE) {
+  const [page, setPage] = usePage(resetKey);
+  const all = items ?? [];
+  const pages = Math.max(1, Math.ceil(all.length / pageSize));
+  const current = Math.min(page, pages);
+  return { page: current, setPage, total: all.length, pageSize, items: all.slice((current - 1) * pageSize, current * pageSize) };
 }
