@@ -38,6 +38,12 @@ public class Business : ITimestamped
     public int ReviewCount { get; set; }
     public int CompletedBookingCount { get; set; }
     public int? AvgResponseMinutes { get; set; }
+    /// <summary>Public page accent colour (a key from <c>PageCatalog.Themes</c>); null = brand blue.</summary>
+    public string? ThemeKey { get; set; }
+    /// <summary>Public page header (a key from <c>PageCatalog.HeaderStyles</c>); null = cover photo.</summary>
+    public string? HeaderStyle { get; set; }
+    /// <summary>Order and visibility of public page sections. Unknown keys are dropped and missing ones appended on read.</summary>
+    public List<PageSection>? PageLayout { get; set; }
     public short? HealthScore { get; set; }
     public DateTime? HealthScoreUpdatedAt { get; set; }
     public Guid? OnboardedBy { get; set; }
@@ -62,11 +68,30 @@ public class BusinessMember
     public short RoleId { get; set; }
     public Role Role { get; set; } = null!;
     public string? Title { get; set; }
+    /// <summary>Shown in the "team" section of the public page (name, title and photo only).</summary>
+    public bool ShowOnProfile { get; set; }
     public MemberStatus Status { get; set; } = MemberStatus.Active;
     public Guid? InvitedBy { get; set; }
     public DateTime JoinedAt { get; set; }
     public DateTime? RemovedAt { get; set; }
     public Guid? RemovedBy { get; set; }
+}
+
+/// <summary>A team member's leave. While approved, the member can't be assigned bookings on those days.</summary>
+public class StaffLeave
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid BusinessId { get; set; }
+    public Guid MemberId { get; set; }
+    public BusinessMember Member { get; set; } = null!;
+    public DateOnly StartDate { get; set; }
+    public DateOnly EndDate { get; set; }
+    public string? Reason { get; set; }
+    public LeaveStatus Status { get; set; } = LeaveStatus.Pending;
+    public Guid? DecidedBy { get; set; }
+    public DateTime? DecidedAt { get; set; }
+    public string? DecisionNote { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 public class BusinessInvitation
@@ -141,6 +166,7 @@ public class Service : ITimestamped
     public RecordStatus Status { get; set; } = RecordStatus.Active;
     public bool IsFeatured { get; set; }
     public short? FeaturedOrder { get; set; }
+    public string? ImageUrl { get; set; }
     public string? PreparationNotes { get; set; }
     public string? Policies { get; set; }
     public string? InternalNotes { get; set; }
@@ -166,4 +192,59 @@ public class ServiceBookingField
     public string? Placeholder { get; set; }
     public bool IsRequired { get; set; }
     public int SortOrder { get; set; }
+}
+
+// ---------- Public page content (owner-customisable) ----------
+
+/// <summary>One entry of <see cref="Business.PageLayout"/>.</summary>
+public record PageSection(string Key, bool Visible);
+
+/// <summary>A post on the business's notice board (offers, holidays, news). Shown while published and not expired.</summary>
+public class BusinessNotice : ITimestamped
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid BusinessId { get; set; }
+    public string Title { get; set; } = "";
+    public string Body { get; set; } = "";
+    /// <summary>At most one pinned notice per business; it is shown first and highlighted.</summary>
+    public bool IsPinned { get; set; }
+    public bool IsPublished { get; set; } = true;
+    public DateTime? ExpiresAt { get; set; }
+    /// <summary>When followers (customers who saved the business) were told about it; each notice notifies once.</summary>
+    public DateTime? NotifiedAt { get; set; }
+    public Guid? CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class BusinessFaq
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid BusinessId { get; set; }
+    public string Question { get; set; } = "";
+    public string Answer { get; set; } = "";
+    public short SortOrder { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>"Why choose us" points.</summary>
+public class BusinessHighlight
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid BusinessId { get; set; }
+    public string IconKey { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string? Description { get; set; }
+    public short SortOrder { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class GalleryItem
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid BusinessId { get; set; }
+    public string ImageUrl { get; set; } = "";
+    public string? Caption { get; set; }
+    public short SortOrder { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
