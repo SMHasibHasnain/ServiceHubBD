@@ -60,16 +60,19 @@ public record SubmitInspectionRequest(
     decimal? Latitude,
     decimal? Longitude);
 
+public record InspectionPhotoDto(Guid Id, string ImageUrl, string? Caption);
+
 public record InspectionDto(Guid Id, InspectionType Type, InspectionStatus Status, InspectionOutcome? Outcome, Guid BusinessId,
     string BusinessName, string? AddressLine, string? BusinessPhone, int ZoneId, string ZoneName, Guid? VerificationRequestId,
     Guid? ReportId, Guid? InspectorId, DateTime? ScheduledFor, DateTime? VisitedAt, string? Findings,
-    Dictionary<string, bool>? Checklist, DateTime CreatedAt);
+    Dictionary<string, bool>? Checklist, DateTime CreatedAt, decimal? Latitude, decimal? Longitude, List<InspectionPhotoDto> Photos);
 
 /// <summary>Inspector workspace: field visits within the inspector's zone(s). Inspectors report; moderators decide.</summary>
 [ApiController]
 [Authorize]
 [Route("api/inspections")]
-public class InspectionsController(AppDbContext db, ICurrentUser me, AccessService access, AuditLogger audit, Notifier notifier) : ControllerBase
+public class InspectionsController(AppDbContext db, ICurrentUser me, AccessService access, AuditLogger audit, Notifier notifier,
+    IFileStorage storage, Microsoft.Extensions.Options.IOptions<StorageOptions> storageOptions) : ControllerBase
 {
     /// <summary>My assigned inspections plus unassigned ones inside my zones.</summary>
     [HttpGet]
@@ -139,6 +142,47 @@ public class InspectionsController(AppDbContext db, ICurrentUser me, AccessServi
         return await Project(db.Inspections.Where(x => x.Id == id)).FirstAsync();
     }
 
+    public const int MaxPhotos = 20;
+
+    /// <summary>
+    /// Evidence photo for an open visit, by the assigned inspector (multipart <c>file</c> and optional <c>caption</c>).
+    /// Photos are frozen once the report is submitted.
+    /// </summary>
+    [HttpPost("{id:guid}/photos")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("uploads")]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 6 * 1024 * 1024)]
+    public async Task<ActionResult<InspectionDto>> AddPhoto(Guid id, CancellationToken ct)
+    {
+        var i = await LoadForInspectorAsync(id, allowUnassigned: false);
+        if (i.Status is InspectionStatus.Completed or InspectionStatus.Cancelled)
+            throw new ConflictException("পরিদর্শনটি ইতিমধ্যে বন্ধ হয়েছে।", "inspection_closed");
+        if (await db.InspectionPhotos.CountAsync(p => p.InspectionId == id, ct) >= MaxPhotos)
+            throw new BadRequestException("একটি পরিদর্শনে সর্বোচ্চ ২০টি ছবি দেওয়া যায়।", "too_many_photos");
+        var (url, form) = await storage.SaveAsync(Request, $"inspection-{id}", storageOptions.Value.MaxImageBytes, ct);
+        var caption = form?["caption"].ToString().Trim();
+        db.InspectionPhotos.Add(new InspectionPhoto
+        {
+            InspectionId = id, ImageUrl = url, Caption = string.IsNullOrEmpty(caption) ? null : caption[..Math.Min(caption.Length, 150)],
+        });
+        await db.SaveChangesAsync(ct);
+        return await Project(db.Inspections.Where(x => x.Id == id)).FirstAsync(ct);
+    }
+
+    [HttpDelete("{id:guid}/photos/{photoId:guid}")]
+    public async Task<ActionResult<InspectionDto>> DeletePhoto(Guid id, Guid photoId)
+    {
+        var i = await LoadForInspectorAsync(id, allowUnassigned: false);
+        if (i.Status is InspectionStatus.Completed or InspectionStatus.Cancelled)
+            throw new ConflictException("জমা দেওয়া প্রতিবেদনের ছবি বদলানো যায় না।", "inspection_closed");
+        var photo = await db.InspectionPhotos.FirstOrDefaultAsync(p => p.Id == photoId && p.InspectionId == id)
+                    ?? throw new NotFoundException("ছবিটি পাওয়া যায়নি।", "photo_not_found");
+        db.InspectionPhotos.Remove(photo);
+        await db.SaveChangesAsync();
+        await storage.DeleteAsync(photo.ImageUrl);
+        return await Project(db.Inspections.Where(x => x.Id == id)).FirstAsync();
+    }
+
     private async Task<Inspection> LoadForInspectorAsync(Guid id, bool allowUnassigned)
     {
         var userId = me.RequireId();
@@ -155,5 +199,7 @@ public class InspectionsController(AppDbContext db, ICurrentUser me, AccessServi
 
     private IQueryable<InspectionDto> Project(IQueryable<Inspection> q) => q.Select(i => new InspectionDto(i.Id, i.Type, i.Status,
         i.Outcome, i.BusinessId, i.Business.Name, i.Business.AddressLine, i.Business.Phone, i.ZoneId, i.Zone.NameBn,
-        i.VerificationRequestId, i.ReportId, i.InspectorId, i.ScheduledFor, i.VisitedAt, i.Findings, i.Checklist, i.CreatedAt));
+        i.VerificationRequestId, i.ReportId, i.InspectorId, i.ScheduledFor, i.VisitedAt, i.Findings, i.Checklist, i.CreatedAt,
+        i.Business.Latitude, i.Business.Longitude,
+        i.Photos.OrderBy(p => p.CreatedAt).Select(p => new InspectionPhotoDto(p.Id, p.ImageUrl, p.Caption)).ToList()));
 }
