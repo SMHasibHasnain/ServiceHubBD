@@ -5,7 +5,7 @@ import { SearchX, SlidersHorizontal } from "lucide-react";
 import { api } from "../../api/client";
 import type { BusinessCard, Paged } from "../../api/types";
 import { BusinessCardView, flattenCategories, useCategories, ZonePicker } from "../../components/shared";
-import { Button, EmptyState, ErrorBox, Skeleton } from "../../components/ui";
+import { Button, EmptyState, ErrorBox, Pagination, Skeleton } from "../../components/ui";
 import { bn } from "../../lib/format";
 
 const SORTS = [
@@ -48,7 +48,6 @@ export default function Search() {
   const toggle = (k: string) => update({ [k]: params.get(k) ? null : "true" });
   const submit = (e: FormEvent) => { e.preventDefault(); update({ q: q.trim() || null }); };
 
-  const totalPages = results.data ? Math.max(1, Math.ceil(results.data.total / PAGE_SIZE)) : 1;
   const chip = (active: boolean) =>
     `min-h-10 rounded-full border px-4 text-[15px] font-medium ${active ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 bg-surface text-zinc-700 hover:border-zinc-400"}`;
 
@@ -64,7 +63,7 @@ export default function Search() {
 
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">{query.q ? `“${query.q}”` : "সব সেবা"}</h1>
+          <h1 className="text-lg font-semibold">{query.q ? `“${query.q}”` : "সব সেবা"}</h1>
           <p className="text-muted" aria-live="polite">{results.data ? `${bn(results.data.total)}টি ব্যবসা পাওয়া গেছে` : "খোঁজা হচ্ছে..."}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -110,17 +109,13 @@ export default function Search() {
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-80" />)}</div>
           ) : results.data?.items.length ? (
             <>
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{results.data.items.map((b, i) => <BusinessCardView key={b.id} b={b} index={i} />)}</div>
-              {totalPages > 1 && (
-                <nav aria-label="পৃষ্ঠা" className="mt-8 flex items-center justify-center gap-3">
-                  <Button variant="outline" disabled={query.page <= 1} onClick={() => update({ page: String(query.page - 1) })}>← আগের</Button>
-                  <span className="text-muted">{bn(query.page)} / {bn(totalPages)}</span>
-                  <Button variant="outline" disabled={query.page >= totalPages} onClick={() => update({ page: String(query.page + 1) })}>পরের →</Button>
-                </nav>
-              )}
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{results.data.items.map((b) => <BusinessCardView key={b.id} b={b} />)}</div>
+              {/* The page lives in the URL, so a shared or reloaded search lands on the same page. */}
+              <Pagination page={query.page} total={results.data.total} pageSize={PAGE_SIZE} className="mt-8" label="ফলাফলের পাতা"
+                onChange={(p) => update({ page: p > 1 ? String(p) : null })} />
             </>
           ) : (
-            <EmptyState icon={<SearchX className="size-8" aria-hidden />} title="আপনার অনুসন্ধানের সাথে মিল পাওয়া যায়নি।"
+            <EmptyState icon={<SearchX className="size-8" aria-hidden />} title="আপনার অনুসন্ধানের সাথে মিল পাওয়া যায়নি"
               description="অন্য কোনো শব্দ দিয়ে চেষ্টা করুন অথবা ফিল্টার মুছে দিন।"
               action={<Button variant="outline" onClick={() => setParams({})}>ফিল্টার মুছুন</Button>} />
           )}
