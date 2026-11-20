@@ -87,7 +87,7 @@ export default function Dashboard() {
                 ))}
               </ul>
               {can("business.verification.submit") && (
-                <div><LinkButton to="settings#verification" variant={checklist.every((c) => c.done) ? "primary" : "outline"}>যাচাইকরণের জন্য জমা দিন</LinkButton></div>
+                <div><LinkButton to="settings/verification" variant={checklist.every((c) => c.done) ? "primary" : "outline"}>যাচাইকরণের জন্য জমা দিন</LinkButton></div>
               )}
             </>
           )}
