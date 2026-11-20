@@ -26,7 +26,7 @@ public record QueueItemDto(Guid Id, Guid BusinessId, string BusinessName, string
 public record DocumentDto(Guid Id, DocumentType DocumentType, string FileUrl, string? FileName, DocumentStatus Status, string? ReviewerNote);
 
 public record InspectionBriefDto(Guid Id, InspectionStatus Status, InspectionOutcome? Outcome, string? Findings,
-    string? InspectorName, DateTime? VisitedAt);
+    string? InspectorName, DateTime? VisitedAt, List<Inspections.InspectionPhotoDto> Photos);
 
 public record ActionDto(Guid Id, ModerationActionType Action, string Reason, string ModeratorName, DateTime CreatedAt);
 
@@ -37,11 +37,14 @@ public record ResolveReportRequest(
     [Required, StringLength(2000, MinimumLength = 5)] string Reason,
     ReportResolution Resolution);
 
-public enum ReportResolution { Dismiss, Resolve, HideReview, RemoveReview, SuspendBusiness, Escalate, RequestInspection }
+public enum ReportResolution { Dismiss, Resolve, HideReview, RemoveReview, RemoveContent, SuspendBusiness, Escalate, RequestInspection }
 
 public record ReportDto(Guid Id, ReportTarget TargetType, Guid? TargetBusinessId, string? TargetBusinessName, Guid? TargetReviewId,
     string? ReviewComment, Guid? TargetUserId, ReportReason Reason, string? Description, PriorityLevel Severity,
-    ReportStatus Status, int SameTargetReports, DateTime CreatedAt);
+    ReportStatus Status, int SameTargetReports, DateTime CreatedAt, ReportContentDto? Content = null);
+
+/// <summary>The reported page item as it is now. <c>Removed</c> when the owner (or a moderator) already deleted it.</summary>
+public record ReportContentDto(string Type, Guid Id, bool Removed, string? Title, string? Text, string? ImageUrl);
 
 /// <summary>
 /// Moderators review, approve, reject or request changes — they never edit business data.
@@ -51,7 +54,7 @@ public record ReportDto(Guid Id, ReportTarget TargetType, Guid? TargetBusinessId
 [Authorize]
 [Route("api/moderation")]
 public class ModerationController(AppDbContext db, ICurrentUser me, AccessService access, AuditLogger audit, Notifier notifier,
-    InspectionRouter router, SubscriptionService subscriptions) : ControllerBase
+    InspectionRouter router, SubscriptionService subscriptions, Page.UploadCleanup cleanup) : ControllerBase
 {
     [HttpGet("verifications")]
     public async Task<ActionResult<PagedResult<QueueItemDto>>> Queue([FromQuery] VerificationStatus? status,
@@ -82,7 +85,8 @@ public class ModerationController(AppDbContext db, ICurrentUser me, AccessServic
         var inspections = await db.Inspections.Where(i => i.VerificationRequestId == id || (i.BusinessId == v.BusinessId && i.Type == InspectionType.VerificationVisit))
             .OrderByDescending(i => i.CreatedAt)
             .Select(i => new InspectionBriefDto(i.Id, i.Status, i.Outcome, i.Findings,
-                db.Users.Where(u => u.Id == i.InspectorId).Select(u => u.FullName).FirstOrDefault(), i.VisitedAt))
+                db.Users.Where(u => u.Id == i.InspectorId).Select(u => u.FullName).FirstOrDefault(), i.VisitedAt,
+                i.Photos.OrderBy(p => p.CreatedAt).Select(p => new Inspections.InspectionPhotoDto(p.Id, p.ImageUrl, p.Caption)).ToList()))
             .ToListAsync();
         var history = await db.ModerationActions.Where(a => a.BusinessId == v.BusinessId).OrderByDescending(a => a.CreatedAt)
             .Join(db.Users, a => a.ModeratorId, u => u.Id, (a, u) => new ActionDto(a.Id, a.Action, a.Reason, u.FullName, a.CreatedAt))
@@ -199,6 +203,21 @@ public class ModerationController(AppDbContext db, ICurrentUser me, AccessServic
                                       (o.TargetUserId != null && o.TargetUserId == r.TargetUserId)),
                 r.CreatedAt))
             .ToListAsync();
+        // Reported page items (notice / gallery photo), loaded in two small queries.
+        var targets = await db.Reports.Where(r => items.Select(i => i.Id).Contains(r.Id) && r.TargetContentId != null)
+            .Select(r => new { r.Id, r.TargetContentType, ContentId = r.TargetContentId!.Value }).ToListAsync();
+        var ids = targets.Select(t => t.ContentId).ToList();
+        var notices = await db.BusinessNotices.Where(n => ids.Contains(n.Id)).ToDictionaryAsync(n => n.Id);
+        var photos = await db.GalleryItems.Where(g => ids.Contains(g.Id)).ToDictionaryAsync(g => g.Id);
+        items = items.Select(i =>
+        {
+            var t = targets.FirstOrDefault(x => x.Id == i.Id);
+            if (t is null) return i;
+            ReportContentDto content = t.TargetContentType == Page.PageCatalog.ContentNotice
+                ? notices.TryGetValue(t.ContentId, out var n) ? new(t.TargetContentType, t.ContentId, false, n.Title, n.Body, null) : new(t.TargetContentType, t.ContentId, true, null, null, null)
+                : photos.TryGetValue(t.ContentId, out var g) ? new(t.TargetContentType!, t.ContentId, false, g.Caption, null, g.ImageUrl) : new(t.TargetContentType!, t.ContentId, true, null, null, null);
+            return i with { Content = content };
+        }).ToList();
         return new PagedResult<ReportDto>(items, paging.SafePage, paging.SafeSize, total);
     }
 
@@ -215,6 +234,7 @@ public class ModerationController(AppDbContext db, ICurrentUser me, AccessServic
 
         var action = ModerationActionType.ResolveReport;
         Guid? inspectionId = null;
+        string? removedFile = null;
         switch (req.Resolution)
         {
             case ReportResolution.Dismiss:
@@ -233,6 +253,13 @@ public class ModerationController(AppDbContext db, ICurrentUser me, AccessServic
                 report.Status = ReportStatus.Resolved;
                 await db.SaveChangesAsync();
                 await ReviewsController.RecalculateRatingsAsync(db, report.TargetReview.BusinessId, report.TargetReview.ServiceId);
+                break;
+            case ReportResolution.RemoveContent:
+                if (report.TargetContentId is null || businessId is null)
+                    throw new BadRequestException("এই রিপোর্টটি কোনো নোটিশ বা ছবি নিয়ে নয়।", "not_a_content_report");
+                removedFile = await RemoveContentAsync(businessId.Value, await ContentAsync(report), req.Reason);
+                report.Status = ReportStatus.Resolved;
+                action = ModerationActionType.RemoveContent;
                 break;
             case ReportResolution.SuspendBusiness:
                 if (businessId is null) throw new BadRequestException("এই রিপোর্টটি কোনো ব্যবসা নিয়ে নয়।", "not_a_business_report");
@@ -262,7 +289,45 @@ public class ModerationController(AppDbContext db, ICurrentUser me, AccessServic
         });
         audit.Log($"report.{SnakeCase.FromEnum(req.Resolution)}", "report", report.Id, req.Reason, businessId, scope: RoleScope.Platform);
         await db.SaveChangesAsync();
+        if (removedFile is not null && businessId is not null) await cleanup.DeleteIfUnusedAsync(businessId.Value, removedFile);
         return NoContent();
+    }
+
+    private async Task<object?> ContentAsync(Report report) => report.TargetContentType switch
+    {
+        Page.PageCatalog.ContentNotice => await db.BusinessNotices.FirstOrDefaultAsync(n => n.Id == report.TargetContentId && n.BusinessId == report.TargetBusinessId),
+        Page.PageCatalog.ContentGalleryItem => await db.GalleryItems.FirstOrDefaultAsync(g => g.Id == report.TargetContentId && g.BusinessId == report.TargetBusinessId),
+        _ => null,
+    };
+
+    /// <summary>
+    /// Takes a reported notice or gallery photo off the page (in the caller's unit of work) and tells the owner why.
+    /// An item the owner already deleted is fine. Returns the photo URL to clean up after saving, if any.
+    /// </summary>
+    private async Task<string?> RemoveContentAsync(Guid businessId, object? item, string reason)
+    {
+        string what, tab;
+        string? file = null;
+        switch (item)
+        {
+            case BusinessNotice notice:
+                db.BusinessNotices.Remove(notice);
+                what = $"নোটিশ “{notice.Title}”";
+                tab = "notices";
+                break;
+            case GalleryItem photo:
+                db.GalleryItems.Remove(photo);
+                file = photo.ImageUrl;
+                what = "গ্যালারির একটি ছবি";
+                tab = "gallery";
+                break;
+            default:
+                return null;
+        }
+        var ownerId = await db.Businesses.Where(b => b.Id == businessId).Select(b => b.OwnerId).FirstAsync();
+        notifier.Notify(ownerId, WorkspaceType.Business, businessId, "business.content_removed",
+            $"মডারেটর আপনার পেজ থেকে {what} সরিয়েছেন।", reason, $"/w/{businessId}/page/{tab}");
+        return file;
     }
 
     [HttpPost("businesses/{businessId:guid}/suspend")]
