@@ -1,9 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellOff } from "lucide-react";
 import { useParams } from "react-router";
 import { api } from "../../api/client";
 import type { NotificationItem, Paged, WorkspaceType } from "../../api/types";
-import { Button, EmptyState, ErrorBox, LoadingList, PageHeader } from "../../components/ui";
+import { Button, EmptyState, ErrorBox, LoadingList, PAGE_SIZE, PageHeader, Pagination, usePage } from "../../components/ui";
 import { relative } from "../../lib/format";
 
 /** Notification list for one workspace (customer by default, or the business in the URL). */
@@ -11,9 +11,11 @@ export default function Notifications({ workspace = "customer" }: { workspace?: 
   const { businessId } = useParams();
   const qc = useQueryClient();
   const filter = { workspace, businessId: workspace === "business" ? businessId : undefined };
+  const [page, setPage] = usePage(filter);
   const list = useQuery({
-    queryKey: ["notifications", filter],
-    queryFn: () => api.get<Paged<NotificationItem>>("/api/me/notifications", { ...filter, pageSize: 50 }),
+    queryKey: ["notifications", filter, page],
+    queryFn: () => api.get<Paged<NotificationItem>>("/api/me/notifications", { ...filter, page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
   });
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["notifications"] });
@@ -45,7 +47,8 @@ export default function Notifications({ workspace = "customer" }: { workspace?: 
             </li>
           ))}
         </ul>
-      ) : <EmptyState icon={<BellOff className="size-8" aria-hidden />} title="কোনো নোটিফিকেশন নেই।" />}
+      ) : <EmptyState icon={<BellOff className="size-8" aria-hidden />} title="কোনো নোটিফিকেশন নেই" />}
+      {list.data && <Pagination page={page} total={list.data.total} onChange={setPage} label="নোটিফিকেশনের পাতা" />}
     </>
   );
 }
