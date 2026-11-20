@@ -47,7 +47,7 @@ public class TeamController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpGet("businesses/{businessId:guid}/members")]
     public async Task<ActionResult<List<MemberDto>>> Members(Guid businessId)
     {
-        await access.RequireBusinessAsync(businessId, P.MembersView);
+        await access.RequireBusinessOrStaffAsync(businessId, P.MembersView);
         return await db.BusinessMembers.Where(m => m.BusinessId == businessId && m.Status != MemberStatus.Removed)
             .OrderByDescending(m => m.Role.Rank).ThenBy(m => m.User.FullName)
             .Select(m => new MemberDto(m.Id, m.UserId, m.User.FullName, m.User.Phone, m.Role.Key, m.Role.NameBn, m.Title, m.Status, m.JoinedAt))
@@ -57,7 +57,7 @@ public class TeamController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpGet("businesses/{businessId:guid}/invitations")]
     public async Task<ActionResult<List<InvitationDto>>> Invitations(Guid businessId)
     {
-        await access.RequireBusinessAsync(businessId, P.MembersView);
+        await access.RequireBusinessOrStaffAsync(businessId, P.MembersView);
         return await InvitationQuery(db.BusinessInvitations.Where(i => i.BusinessId == businessId && i.Status == InvitationStatus.Pending))
             .ToListAsync();
     }
@@ -66,7 +66,7 @@ public class TeamController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpPost("businesses/{businessId:guid}/invitations")]
     public async Task<ActionResult<InvitationCreatedDto>> Invite(Guid businessId, InviteRequest req)
     {
-        var actor = await access.RequireBusinessAsync(businessId, P.MembersManage);
+        var actor = await access.RequireBusinessOrStaffAsync(businessId, P.MembersManage);
         var role = await AssignableRoleAsync(req.RoleKey, actor);
         var phone = Phone.NormalizeBd(req.Phone) ?? throw new BadRequestException("সঠিক মোবাইল নম্বর লিখুন।", "invalid_phone");
 
@@ -90,7 +90,7 @@ public class TeamController(AppDbContext db, ICurrentUser me, AccessService acce
             notifier.Notify(invitee.Id, WorkspaceType.Customer, null, "team.invited",
                 $"“{businessName}” আপনাকে {role.NameBn} হিসেবে যোগ দিতে আমন্ত্রণ জানিয়েছে।",
                 data: new() { ["invitationId"] = invitation.Id.ToString() });
-        audit.Log("member.invite", "business_invitation", invitation.Id, businessId: businessId, scope: RoleScope.Business,
+        audit.Log("member.invite", "business_invitation", invitation.Id, businessId: businessId, scope: actor.Scope,
             roleId: actor.RoleId, changes: new() { ["phone"] = phone, ["role"] = role.Key });
         await db.SaveChangesAsync();
         await sms.SendAsync(phone, $"“{businessName}” আপনাকে ServiceHub BD-তে টিম সদস্য হিসেবে আমন্ত্রণ জানিয়েছে। কোড: {token}");
@@ -102,7 +102,7 @@ public class TeamController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpDelete("businesses/{businessId:guid}/invitations/{invitationId:guid}")]
     public async Task<IActionResult> Revoke(Guid businessId, Guid invitationId)
     {
-        await access.RequireBusinessAsync(businessId, P.MembersManage);
+        await access.RequireBusinessOrStaffAsync(businessId, P.MembersManage);
         await db.BusinessInvitations.Where(i => i.Id == invitationId && i.BusinessId == businessId && i.Status == InvitationStatus.Pending)
             .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, InvitationStatus.Revoked));
         return NoContent();
@@ -155,13 +155,13 @@ public class TeamController(AppDbContext db, ICurrentUser me, AccessService acce
     [HttpPatch("businesses/{businessId:guid}/members/{memberId:guid}")]
     public async Task<ActionResult<MemberDto>> Update(Guid businessId, Guid memberId, UpdateMemberRequest req)
     {
-        var actor = await access.RequireBusinessAsync(businessId, P.MembersManage);
+        var actor = await access.RequireBusinessOrStaffAsync(businessId, P.MembersManage);
         var member = await LoadMemberAsync(businessId, memberId);
         EnsureCanManage(actor, member);
         if (req.RoleKey is not null)
         {
             var role = await AssignableRoleAsync(req.RoleKey, actor);
-            audit.Log("member.role_change", "business_member", member.Id, businessId: businessId, scope: RoleScope.Business,
+            audit.Log("member.role_change", "business_member", member.Id, businessId: businessId, scope: actor.Scope,
                 roleId: actor.RoleId, changes: new() { ["from"] = member.Role.Key, ["to"] = role.Key });
             member.RoleId = role.Id;
             member.Role = role;
@@ -169,7 +169,7 @@ public class TeamController(AppDbContext db, ICurrentUser me, AccessService acce
         if (req.Title is not null) member.Title = req.Title;
         if (req.Status is MemberStatus.Active or MemberStatus.Suspended)
         {
-            audit.Log("member.status_change", "business_member", member.Id, businessId: businessId, scope: RoleScope.Business,
+            audit.Log("member.status_change", "business_member", member.Id, businessId: businessId, scope: actor.Scope,
                 roleId: actor.RoleId, changes: new() { ["to"] = SnakeCase.FromEnum(req.Status.Value) });
             member.Status = req.Status.Value;
         }
@@ -187,35 +187,36 @@ public class TeamController(AppDbContext db, ICurrentUser me, AccessService acce
         if (member.Role.Key == R.BusinessOwner)
             throw new ConflictException("মালিককে টিম থেকে সরানো যায় না।", "cannot_remove_owner");
         short? actorRoleId = member.RoleId;
+        var actorScope = RoleScope.Business;
         if (member.UserId != userId)
         {
-            var actor = await access.RequireBusinessAsync(businessId, P.MembersManage);
+            var actor = await access.RequireBusinessOrStaffAsync(businessId, P.MembersManage);
             EnsureCanManage(actor, member);
-            actorRoleId = actor.RoleId;
+            (actorRoleId, actorScope) = (actor.RoleId, actor.Scope);
         }
         member.Status = MemberStatus.Removed;
         member.RemovedAt = DateTime.UtcNow;
         member.RemovedBy = userId;
         await db.Bookings.Where(b => b.AssignedMemberId == member.Id && b.StartAt > DateTime.UtcNow)
             .ExecuteUpdateAsync(s => s.SetProperty(b => b.AssignedMemberId, (Guid?)null));
-        audit.Log("member.remove", "business_member", member.Id, businessId: businessId, scope: RoleScope.Business, roleId: actorRoleId);
+        audit.Log("member.remove", "business_member", member.Id, businessId: businessId, scope: actorScope, roleId: actorRoleId);
         await db.SaveChangesAsync();
         return NoContent();
     }
 
-    private static void EnsureCanManage(BusinessMember actor, BusinessMember target)
+    private static void EnsureCanManage(BusinessActor actor, BusinessMember target)
     {
-        if (target.Role.Rank >= actor.Role.Rank)
+        if (target.Role.Rank >= actor.Rank)
             throw new ForbiddenException("নিজের সমান বা উচ্চতর ভূমিকার সদস্যকে পরিবর্তন করা যায় না।", "insufficient_rank");
     }
 
     /// <summary>Business roles strictly below the actor's rank. Ownership is transferred, never assigned.</summary>
-    private async Task<Role> AssignableRoleAsync(string key, BusinessMember actor)
+    private async Task<Role> AssignableRoleAsync(string key, BusinessActor actor)
     {
         var role = await db.Roles.FirstOrDefaultAsync(r => r.Key == key && r.Scope == RoleScope.Business &&
                                                            (r.BusinessId == null || r.BusinessId == actor.BusinessId))
                    ?? throw new BadRequestException("ভূমিকাটি পাওয়া যায়নি।", "invalid_role");
-        if (role.Key == R.BusinessOwner || role.Rank >= actor.Role.Rank)
+        if (role.Key == R.BusinessOwner || role.Rank >= actor.Rank)
             throw new ForbiddenException("এই ভূমিকা দেওয়ার অনুমতি আপনার নেই।", "insufficient_rank");
         return role;
     }
