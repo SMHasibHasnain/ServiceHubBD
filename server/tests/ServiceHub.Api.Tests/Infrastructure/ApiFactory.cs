@@ -48,6 +48,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public CapturingSmsSender Sms { get; } = new();
 
+    /// <summary>Uploads go to a throwaway folder, removed with the database.</summary>
+    public string UploadsPath { get; } = Path.Combine(Path.GetTempPath(), $"servicehub_test_uploads_{Guid.NewGuid():N}");
+
     private string ConnectionString => $"{_server};Database={_dbName}";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -61,6 +64,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Seed:SuperAdminPassword", AdminPassword);
         builder.UseSetting("RateLimits:AuthPerMinute", "100000");
         builder.UseSetting("Billing:RunMaintenance", "false"); // tests drive maintenance explicitly
+        builder.UseSetting("Storage:LocalPath", UploadsPath);
+        builder.UseSetting("RateLimits:UploadsPerMinute", "100000");
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<ISmsSender>();
@@ -85,6 +90,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await conn.OpenAsync();
         await using var cmd = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{_dbName}\" WITH (FORCE)", conn);
         await cmd.ExecuteNonQueryAsync();
+        if (Directory.Exists(UploadsPath)) Directory.Delete(UploadsPath, recursive: true);
     }
 
     /// <summary>Runs code against the API's DbContext (e.g. to move a booking into the past).</summary>
